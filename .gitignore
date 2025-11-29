@@ -1,0 +1,31 @@
+# Node.js
+node_modules/
+dist/
+out/
+
+# macOS
+.DS_Store
+
+# ESLint
+.eslintcache
+
+# Log files
+*.log
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.mypy_cache/
+.env/
+.venv/
+venv/
+pip-wheel-metadata/
+dist/
+
+# VSCode
+.vscode/
+
+# env files
+.env
