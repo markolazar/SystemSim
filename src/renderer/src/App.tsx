@@ -1,11 +1,11 @@
-import electronLogo from './assets/electron.svg'
-import { useState } from 'react'
-import { Button } from '@renderer/components/ui/button'
 import Page from '@renderer/dashboard/page'
+import { ThemeProvider } from "@/components/theme-provider"
 
 function App(): React.JSX.Element {
   return (
-    <Page />
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <Page />
+    </ThemeProvider >
   )
   // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
 
