@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@renderer': resolve('src/renderer/src'),
+          '@': resolve('src/renderer/src'),
         },
       },
       // Configure dev server port for the renderer (Vite).
