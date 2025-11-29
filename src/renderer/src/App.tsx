@@ -1,4 +1,3 @@
-import Versions from './components/Versions'
 import electronLogo from './assets/electron.svg'
 import { useState } from 'react'
 
@@ -21,32 +20,31 @@ function App(): React.JSX.Element {
 
   return (
     <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite and python</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
-        &nbsp;and <span className="ts">Python</span>
+      <img alt="logo" src={electronLogo} />
+      <div >Powered by electron-vite and python</div>
+      <div>
+        Build an Electron app with <span>React</span>
+        &nbsp;and <span>TypeScript</span>
+        &nbsp;and <span>Python</span>
       </div>
-      <p className="tip">
+      <p>
         Please try pressing <code>F12</code> to open the devTool
       </p>
-      <div className="actions">
-        <div className="action">
+      <div>
+        <div>
           <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
             Documentation
           </a>
         </div>
-        <div className="action">
+        <div>
           <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
             Send IPC
           </a>
         </div>
-        <div className="action">
+        <div>
           <a onClick={fetchData} style={{ cursor: 'pointer' }}>{data || 'Click me'}</a>
         </div>
       </div>
-      <Versions></Versions>
     </>
   )
 }
