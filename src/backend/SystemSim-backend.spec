@@ -42,9 +42,3 @@ coll = COLLECT(
     upx_exclude=[],
     name='SystemSim-backend',
 )
-app = BUNDLE(
-    coll,
-    name='SystemSim-backend.app',
-    icon=None,
-    bundle_identifier=None,
-)

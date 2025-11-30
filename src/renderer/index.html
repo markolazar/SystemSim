@@ -5,10 +5,42 @@
   <meta charset="UTF-8" />
   <title>SystemSim</title>
   <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+  <!-- Prevent white flash: set an immediate dark background and theme class before app loads -->
+  <style>
+    /* Inline background ensures no white flash before CSS/JS loads */
+    html {
+      background-color: #0f172a;
+      color: #e5e7eb;
+    }
+
+    body {
+      background: transparent;
+      margin: 0;
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = stored ? stored : (prefersDark ? 'dark' : 'light');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+          document.documentElement.style.backgroundColor = '#0f172a';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.style.backgroundColor = '#ffffff';
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    })();
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
+  <p>Loading...</p>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

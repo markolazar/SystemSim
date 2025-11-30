@@ -28,7 +28,7 @@ let backendProcess: ChildProcessWithoutNullStreams
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    backgroundColor: '#000000ff',
+    backgroundColor: '#0f172a',
     width: 900,
     height: 670,
     show: false,
