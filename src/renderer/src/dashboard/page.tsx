@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import SFC from "@/SFC/page"
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+} from "@/components/ui/card"
 
 export default function Page() {
     return (
@@ -43,9 +49,132 @@ export default function Page() {
                         <ModeToggle />
                     </div>
                 </header>
-                <div className="flex-1 min-h-0">
-                    <SFC />
-                </div>
+
+                {/* Full layout matching wireframe: 4-column desktop grid (1/2/1), stacks on small screens */}
+                <main className="flex-1 min-h-0 p-4">
+                    <div className="h-full w-full grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0">
+                        {/* Column 1: OPC Server */}
+                        <div className="space-y-4 col-span-1 min-h-0">
+                            <Card className="min-h-0">
+                                <CardHeader>
+                                    <CardTitle>OPC Server</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <input className="w-full rounded border px-2 py-1" placeholder="OPC Server URL/IP" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input className="rounded border px-2 py-1" placeholder="Username" />
+                                            <input className="rounded border px-2 py-1" placeholder="Password" type="password" />
+                                        </div>
+                                        <div className="h-40 overflow-auto border rounded p-2">Nodes list...</div>
+                                        <div className="flex gap-2">
+                                            <button className="rounded bg-primary px-3 py-1 text-primary-foreground">Connect</button>
+                                            <button className="rounded border px-3 py-1">Load Selected Nodes</button>
+                                            <button className="rounded border px-3 py-1">Refresh Nodes</button>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="min-h-0">
+                                <CardHeader>
+                                    <CardTitle>Simulation Control</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex gap-2">
+                                        <button className="rounded border px-3 py-1">Start All</button>
+                                        <button className="rounded border px-3 py-1">Stop All</button>
+                                        <button className="rounded border px-3 py-1">Reset</button>
+                                    </div>
+                                    <div className="mt-3">
+                                        <div className="text-sm text-muted-foreground">Live OPC Node Values</div>
+                                        <div className="mt-2 border rounded p-2 h-24 overflow-auto">Node / Value / Status</div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Column 2-3: SFC Designer area (spans 2 columns) */}
+                        <div className="col-span-1 md:col-span-2 min-h-0 space-y-4">
+                            <Card className="min-h-0">
+                                <CardHeader>
+                                    <CardTitle>SFC Designer</CardTitle>
+                                </CardHeader>
+                                <CardContent className="min-h-[420px] p-0">
+                                    <div className="flex h-full min-h-0">
+                                        {/* Left tool palette */}
+                                        <div className="w-16 p-3 border-r flex flex-col items-center gap-3">
+                                            <button className="w-10 h-10 rounded border">■</button>
+                                            <button className="w-10 h-10 rounded border">◇</button>
+                                            <button className="w-10 h-10 rounded border">→</button>
+                                            <button className="w-10 h-10 rounded border">○</button>
+                                        </div>
+
+                                        {/* ReactFlow canvas */}
+                                        <div className="flex-1 min-h-0">
+                                            <SFC />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Column 4: Properties panel */}
+                        <div className="col-span-1 min-h-0">
+                            <Card className="min-h-0">
+                                <CardHeader>
+                                    <CardTitle>Properties</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        <input className="w-full rounded border px-2 py-1" placeholder="Label" />
+                                        <input className="w-full rounded border px-2 py-1" placeholder="Linked OPC Node" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Second row: Report / Historian spans center + right columns */}
+                        <div className="col-span-1 md:col-span-1 min-h-0">
+                            {/* keep left column space for alignment - optionally empty or add controls */}
+                        </div>
+                        <div className="col-span-1 md:col-span-3 min-h-0">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Report / Historian</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-3 gap-2 items-center">
+                                        <div className="col-span-2">
+                                            <input className="w-full rounded border px-2 py-1" placeholder="Node Selection" />
+                                        </div>
+                                        <div className="text-right">Start : End</div>
+                                    </div>
+                                    <div className="mt-4 border rounded overflow-auto h-36">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="text-left">
+                                                    <th className="p-2">Timestamp</th>
+                                                    <th className="p-2">Node</th>
+                                                    <th className="p-2">Value</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td className="p-2">12:02 PM</td>
+                                                    <td className="p-2">Node</td>
+                                                    <td className="p-2">Value</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </main>
             </SidebarInset>
         </SidebarProvider>
     )

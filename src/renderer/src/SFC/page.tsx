@@ -65,16 +65,20 @@ export default function SFC() {
     }, []);
 
     return (
-        <div className="w-full h-full min-h-0">
-            <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                fitView
-                style={{ width: '100%', height: '100%' }}
-            />
+        <div className="w-full h-full min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0">
+                <div className="h-full w-full min-h-0">
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        fitView
+                        style={{ width: '100%', height: '100%' }}
+                    />
+                </div>
+            </div>
         </div>
     );
 }
