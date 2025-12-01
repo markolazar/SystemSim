@@ -21,6 +21,63 @@ import {
     CardTitle,
     CardContent,
 } from "@/components/ui/card"
+import React, { useState, useRef, useEffect } from "react"
+
+function ResizableCard({ children, initialHeight = 320, className = "" }: {
+    children: React.ReactNode
+    initialHeight?: number
+    className?: string
+}) {
+    const [height, setHeight] = useState<number | null>(initialHeight)
+    const ref = useRef<HTMLDivElement | null>(null)
+    const startY = useRef(0)
+    const startH = useRef(0)
+
+    useEffect(() => {
+        const onMove = (e: MouseEvent) => {
+            const delta = e.clientY - startY.current
+            const newH = Math.max(100, startH.current + delta)
+            setHeight(newH)
+        }
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+        return () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+    }, [])
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        startY.current = e.clientY
+        startH.current = (ref.current?.getBoundingClientRect().height) || (height || 0)
+
+        const onMove = (ev: MouseEvent) => {
+            const delta = ev.clientY - startY.current
+            const newH = Math.max(100, startH.current + delta)
+            setHeight(newH)
+        }
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+    }
+
+    return (
+        <Card ref={ref as any} className={`relative overflow-hidden ${className}`} style={height ? { height: `${height}px` } : undefined}>
+            {children}
+            <div
+                onMouseDown={onMouseDown}
+                className="absolute left-0 right-0 bottom-0 h-2 cursor-row-resize bg-transparent"
+                aria-hidden
+            />
+        </Card>
+    )
+}
 
 export default function Page() {
     return (
@@ -55,11 +112,11 @@ export default function Page() {
                     <div className="h-full w-full grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0">
                         {/* Column 1: OPC Server */}
                         <div className="space-y-4 col-span-1 min-h-0">
-                            <Card className="min-h-0">
+                            <ResizableCard initialHeight={320} className="min-h-0">
                                 <CardHeader>
                                     <CardTitle>OPC Server</CardTitle>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="overflow-auto h-full">
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2">
                                             <input className="w-full rounded border px-2 py-1" placeholder="OPC Server URL/IP" />
@@ -76,13 +133,13 @@ export default function Page() {
                                         </div>
                                     </div>
                                 </CardContent>
-                            </Card>
+                            </ResizableCard>
 
-                            <Card className="min-h-0">
+                            <ResizableCard initialHeight={220} className="min-h-0">
                                 <CardHeader>
                                     <CardTitle>Simulation Control</CardTitle>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="overflow-auto h-full">
                                     <div className="flex gap-2">
                                         <button className="rounded border px-3 py-1">Start All</button>
                                         <button className="rounded border px-3 py-1">Stop All</button>
@@ -93,16 +150,16 @@ export default function Page() {
                                         <div className="mt-2 border rounded p-2 h-24 overflow-auto">Node / Value / Status</div>
                                     </div>
                                 </CardContent>
-                            </Card>
+                            </ResizableCard>
                         </div>
 
                         {/* Column 2-3: SFC Designer area (spans 2 columns) */}
                         <div className="col-span-1 md:col-span-2 min-h-0 space-y-4">
-                            <Card className="min-h-0">
+                            <ResizableCard initialHeight={480} className="min-h-0">
                                 <CardHeader>
                                     <CardTitle>SFC Designer</CardTitle>
                                 </CardHeader>
-                                <CardContent className="min-h-[420px] p-0">
+                                <CardContent className="min-h-[360px] p-0 overflow-hidden h-full">
                                     <div className="flex h-full min-h-0">
                                         {/* Left tool palette */}
                                         <div className="w-16 p-3 border-r flex flex-col items-center gap-3">
@@ -118,22 +175,22 @@ export default function Page() {
                                         </div>
                                     </div>
                                 </CardContent>
-                            </Card>
+                            </ResizableCard>
                         </div>
 
                         {/* Column 4: Properties panel */}
                         <div className="col-span-1 min-h-0">
-                            <Card className="min-h-0">
+                            <ResizableCard initialHeight={220} className="min-h-0">
                                 <CardHeader>
                                     <CardTitle>Properties</CardTitle>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="overflow-auto h-full">
                                     <div className="space-y-2">
                                         <input className="w-full rounded border px-2 py-1" placeholder="Label" />
                                         <input className="w-full rounded border px-2 py-1" placeholder="Linked OPC Node" />
                                     </div>
                                 </CardContent>
-                            </Card>
+                            </ResizableCard>
                         </div>
 
                         {/* Second row: Report / Historian spans center + right columns */}
@@ -141,11 +198,11 @@ export default function Page() {
                             {/* keep left column space for alignment - optionally empty or add controls */}
                         </div>
                         <div className="col-span-1 md:col-span-3 min-h-0">
-                            <Card>
+                            <ResizableCard initialHeight={300}>
                                 <CardHeader>
                                     <CardTitle>Report / Historian</CardTitle>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="overflow-auto h-full">
                                     <div className="grid grid-cols-3 gap-2 items-center">
                                         <div className="col-span-2">
                                             <input className="w-full rounded border px-2 py-1" placeholder="Node Selection" />
@@ -171,7 +228,7 @@ export default function Page() {
                                         </table>
                                     </div>
                                 </CardContent>
-                            </Card>
+                            </ResizableCard>
                         </div>
                     </div>
                 </main>
