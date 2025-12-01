@@ -122,4 +122,16 @@
     .react-flow__pane {
         min-height: 0;
     }
+
+    /* hide ReactFlow attribution/watermark */
+    .react-flow .react-flow__attribution,
+    .react-flow__attribution {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
 }
