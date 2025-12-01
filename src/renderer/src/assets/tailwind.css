@@ -96,4 +96,30 @@
     body {
         @apply bg-background text-foreground;
     }
+    /* Map ReactFlow's CSS variables to the app's shadcn variables so the library
+       uses the app theme for nodes, handles, edges, and labels. This is more
+       robust than overriding internal class styles. */
+    .react-flow,
+    .react-flow.dark,
+    :where(.react-flow) {
+        --xy-node-background-color: hsl(var(--card));
+        --xy-node-color: hsl(var(--card-foreground));
+        --xy-node-border: 1px solid hsl(var(--border));
+        --xy-handle-background-color: hsl(var(--card-foreground));
+        --xy-handle-border-color: hsl(var(--border));
+        --xy-edge-label-color: hsl(var(--card-foreground));
+        --xy-edge-stroke: hsl(var(--border));
+        --xy-background-color: transparent;
+    }
+
+    /* Ensure SVG text and fills inside react-flow use the current color */
+    .react-flow svg {
+        color: inherit;
+    }
+
+    /* Prevent ReactFlow internals from causing overflow inside flex parents */
+    .react-flow__viewport,
+    .react-flow__pane {
+        min-height: 0;
+    }
 }
