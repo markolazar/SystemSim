@@ -5,6 +5,9 @@ import icon from '../../resources/icon.png?asset'
 import dotenv from 'dotenv'
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process'
 
+// Disable GPU acceleration, for some reasin it works better on different PCs
+app.disableHardwareAcceleration()
+
 if (app.isPackaged) {
   dotenv.config({ path: join(process.resourcesPath, '.env') })
 } else {
