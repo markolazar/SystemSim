@@ -20,7 +20,7 @@ export default function Page() {
     return (
         <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>
+            <SidebarInset className="flex flex-col h-screen">
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b">
                     <div className="flex items-center gap-2 px-3">
                         <SidebarTrigger />
@@ -43,7 +43,9 @@ export default function Page() {
                         <ModeToggle />
                     </div>
                 </header>
-                <SFC />
+                <div className="flex-1 min-h-0">
+                    <SFC />
+                </div>
             </SidebarInset>
         </SidebarProvider>
     )

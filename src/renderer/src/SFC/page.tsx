@@ -26,7 +26,7 @@ export default function SFC() {
     );
 
     return (
-        <div style={{ width: '100vw', height: '100vh' }}>
+        <div className="w-full h-full min-h-0">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -34,6 +34,7 @@ export default function SFC() {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 fitView
+                style={{ width: '100%', height: '100%' }}
             />
         </div>
     );
