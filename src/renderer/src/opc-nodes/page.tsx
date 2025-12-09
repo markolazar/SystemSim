@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useMemo } from "react"
 
 interface OPCNode {
@@ -34,6 +35,8 @@ export default function OPCNodesPage() {
         message: string
     } | null>(null)
     const [config, setConfig] = useState<{ url: string; prefix: string } | null>(null)
+    const [isConfigLoading, setIsConfigLoading] = useState(true)
+    const [isNodesLoading, setIsNodesLoading] = useState(true)
     const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
     const [pageSize, setPageSize] = useState(25)
@@ -45,6 +48,7 @@ export default function OPCNodesPage() {
     useEffect(() => {
         const loadConfig = async () => {
             try {
+                setIsConfigLoading(true)
                 const response = await fetch(`http://localhost:${backendPort}/opc/config`)
                 const data = await response.json()
 
@@ -53,6 +57,8 @@ export default function OPCNodesPage() {
                 }
             } catch (error) {
                 console.error("Failed to load configuration:", error)
+            } finally {
+                setIsConfigLoading(false)
             }
         }
 
@@ -63,6 +69,7 @@ export default function OPCNodesPage() {
     useEffect(() => {
         const loadNodes = async () => {
             try {
+                setIsNodesLoading(true)
                 const response = await fetch(`http://localhost:${backendPort}/opc/nodes`)
                 const data = await response.json()
 
@@ -72,6 +79,8 @@ export default function OPCNodesPage() {
                 }
             } catch (error) {
                 console.error("Failed to load nodes:", error)
+            } finally {
+                setIsNodesLoading(false)
             }
         }
 
@@ -150,12 +159,13 @@ export default function OPCNodesPage() {
             setDiscoveryResult(data)
 
             if (data.success) {
-                // Reload nodes
+                setIsNodesLoading(true)
                 const nodesResponse = await fetch(`http://localhost:${backendPort}/opc/nodes`)
                 const nodesData = await nodesResponse.json()
                 if (nodesData.success && nodesData.nodes) {
                     setNodes(nodesData.nodes)
                 }
+                setIsNodesLoading(false)
             }
         } catch (error) {
             setDiscoveryResult({
@@ -202,7 +212,7 @@ export default function OPCNodesPage() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleDiscoverNodes}
-                                        disabled={isDiscovering || !config}
+                                        disabled={isDiscovering || !config || isConfigLoading}
                                         className="rounded bg-primary px-4 py-2 text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isDiscovering ? "Discovering..." : "Discover Nodes"}
@@ -223,20 +233,27 @@ export default function OPCNodesPage() {
                                     </div>
                                 )}
 
-                                {config && (
-                                    <div className="mt-4 p-3 rounded bg-muted/50 text-sm">
-                                        <p className="text-muted-foreground">
-                                            <strong>Connected to:</strong> {config.url}
-                                        </p>
-                                        <p className="text-muted-foreground">
-                                            <strong>Prefix:</strong> {config.prefix}
-                                        </p>
+                                {isConfigLoading ? (
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-5 w-1/2" />
+                                        <Skeleton className="h-5 w-1/3" />
                                     </div>
+                                ) : (
+                                    config && (
+                                        <div className="mt-4 p-3 rounded bg-muted/50 text-sm">
+                                            <p className="text-muted-foreground">
+                                                <strong>Connected to:</strong> {config.url}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                <strong>Prefix:</strong> {config.prefix}
+                                            </p>
+                                        </div>
+                                    )
                                 )}
                             </CardContent>
                         </Card>
 
-                        {nodes.length > 0 && (
+                        {(isNodesLoading || nodes.length > 0) && (
                             <Card>
                                 <CardHeader>
                                     <div className="flex items-center justify-between gap-3">
@@ -286,52 +303,64 @@ export default function OPCNodesPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {pagedNodes.map((node, idx) => (
-                                                    <tr key={`${node.node_id}-${idx}`} className="border-b hover:bg-muted/50">
-                                                        <td className="px-4 py-2 font-mono text-xs break-all">
-                                                            {node.node_id}
-                                                        </td>
-                                                        <td className="px-4 py-2">{node.browse_name}</td>
-                                                        <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
-                                                            {node.parent_id || "-"}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-xs text-muted-foreground">
-                                                            {node.data_type || "-"}
-                                                        </td>
-                                                        <td className="px-4 py-2 text-center">
-                                                            {node.value_rank !== null ? node.value_rank : "-"}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {isNodesLoading
+                                                    ? Array.from({ length: 5 }).map((_, idx) => (
+                                                        <tr key={`skeleton-${idx}`} className="border-b">
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-40" /></td>
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-24" /></td>
+                                                            <td className="px-4 py-2 text-center"><Skeleton className="h-4 w-10 mx-auto" /></td>
+                                                        </tr>
+                                                    ))
+                                                    : pagedNodes.map((node, idx) => (
+                                                        <tr key={`${node.node_id}-${idx}`} className="border-b hover:bg-muted/50">
+                                                            <td className="px-4 py-2 font-mono text-xs break-all">
+                                                                {node.node_id}
+                                                            </td>
+                                                            <td className="px-4 py-2">{node.browse_name}</td>
+                                                            <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                                                                {node.parent_id || "-"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-xs text-muted-foreground">
+                                                                {node.data_type || "-"}
+                                                            </td>
+                                                            <td className="px-4 py-2 text-center">
+                                                                {node.value_rank !== null ? node.value_rank : "-"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
                                             </tbody>
                                         </table>
                                     </div>
 
-                                    <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-                                        <span>
-                                            Showing {(currentPage - 1) * pageSize + 1}–
-                                            {Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => goToPage(currentPage - 1)}
-                                                disabled={currentPage === 1}
-                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
-                                            >
-                                                Prev
-                                            </button>
-                                            <span className="px-2">
-                                                Page {currentPage} / {totalPages}
+                                    {!isNodesLoading && (
+                                        <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                                            <span>
+                                                Showing {(currentPage - 1) * pageSize + 1}–
+                                                {Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}
                                             </span>
-                                            <button
-                                                onClick={() => goToPage(currentPage + 1)}
-                                                disabled={currentPage === totalPages}
-                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
-                                            >
-                                                Next
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => goToPage(currentPage - 1)}
+                                                    disabled={currentPage === 1}
+                                                    className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                >
+                                                    Prev
+                                                </button>
+                                                <span className="px-2">
+                                                    Page {currentPage} / {totalPages}
+                                                </span>
+                                                <button
+                                                    onClick={() => goToPage(currentPage + 1)}
+                                                    disabled={currentPage === totalPages}
+                                                    className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         )}
