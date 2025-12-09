@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import DashboardPage from '@renderer/dashboard/page'
 import OPCServerPage from '@renderer/opc-server/page'
+import OPCNodesPage from '@renderer/opc-nodes/page'
 import { ThemeProvider } from "@/components/theme-provider"
 
 function App(): React.JSX.Element {
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'opc-server'>('dashboard')
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'opc-server' | 'opc-nodes'>('dashboard')
 
   useEffect(() => {
     const handleNavigation = (event: CustomEvent) => {
@@ -19,6 +20,8 @@ function App(): React.JSX.Element {
     switch (currentPage) {
       case 'opc-server':
         return <OPCServerPage />
+      case 'opc-nodes':
+        return <OPCNodesPage />
       case 'dashboard':
       default:
         return <DashboardPage />

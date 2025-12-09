@@ -6,8 +6,20 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import init_database, save_opc_config, get_opc_config
-from opc_handler import OPCTestRequest, OPCSaveRequest, connect_to_opc_server
+from database import (
+    init_database,
+    save_opc_config,
+    get_opc_config,
+    save_opc_nodes,
+    get_opc_nodes,
+)
+from opc_handler import (
+    OPCTestRequest,
+    OPCSaveRequest,
+    OPCDiscoverRequest,
+    connect_to_opc_server,
+    discover_nodes,
+)
 
 
 def get_base_path():
@@ -92,6 +104,36 @@ async def get_opc_configuration():
             }
     except Exception as e:
         return {"success": False, "message": f"Failed to load configuration: {str(e)}"}
+
+
+@app.post("/opc/discover-nodes")
+async def discover_opc_nodes(request: OPCDiscoverRequest):
+    """Discover all OPC nodes recursively and save to database"""
+    try:
+        result = discover_nodes(request.url, request.prefix)
+
+        if result["success"]:
+            # Save discovered nodes to database
+            await save_opc_nodes(result["nodes"])
+            return {
+                "success": True,
+                "message": result["message"],
+                "node_count": len(result["nodes"]),
+            }
+        else:
+            return result
+    except Exception as e:
+        return {"success": False, "message": f"Failed to discover nodes: {str(e)}"}
+
+
+@app.get("/opc/nodes")
+async def get_discovered_nodes():
+    """Get all discovered OPC nodes from database"""
+    try:
+        nodes = await get_opc_nodes()
+        return {"success": True, "nodes": nodes, "count": len(nodes)}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to retrieve nodes: {str(e)}"}
 
 
 if __name__ == "__main__":

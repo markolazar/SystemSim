@@ -43,6 +43,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarMenu>
                         {[
                             { title: "OPC Server", page: "opc-server" },
+                            { title: "OPC Nodes", page: "opc-nodes" },
                             { title: "SFC Designer", page: "dashboard" },
                             { title: "Simulation Control", page: "#" },
                             { title: "Report / Historian", page: "#" },
