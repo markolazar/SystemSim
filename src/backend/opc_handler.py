@@ -59,15 +59,16 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0)
         except:
             value_rank = None
 
-        # Add current node
-        node_dict = {
-            "node_id": node_id,
-            "browse_name": browse_name,
-            "parent_id": parent_id,
-            "data_type": data_type,
-            "value_rank": value_rank,
-        }
-        nodes.append(node_dict)
+        # Add current node (exclude if contains "spare" case-insensitive)
+        if "spare" not in node_id.lower() and "spare" not in browse_name.lower():
+            node_dict = {
+                "node_id": node_id,
+                "browse_name": browse_name,
+                "parent_id": parent_id,
+                "data_type": data_type,
+                "value_rank": value_rank,
+            }
+            nodes.append(node_dict)
 
         # Try to get children
         try:
