@@ -17,10 +17,20 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { useState, useEffect } from "react"
 
+interface TestResult {
+    success: boolean
+    message: string
+    details?: {
+        node_id: string
+        num_children: number
+        children: string[]
+    }
+}
+
 export default function OPCServerPage() {
     const [opcServerUrl, setOpcServerUrl] = useState("")
     const [opcServerPrefix, setOpcServerPrefix] = useState("")
-    const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+    const [testResult, setTestResult] = useState<TestResult | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [saveResult, setSaveResult] = useState<{ success: boolean; message: string } | null>(null)
 
@@ -32,7 +42,7 @@ export default function OPCServerPage() {
             try {
                 const response = await fetch(`http://localhost:${backendPort}/opc/config`)
                 const data = await response.json()
-                
+
                 if (data.success && data.config) {
                     setOpcServerUrl(data.config.url)
                     setOpcServerPrefix(data.config.prefix)
@@ -41,7 +51,7 @@ export default function OPCServerPage() {
                 console.error("Failed to load saved configuration:", error)
             }
         }
-        
+
         loadConfig()
     }, [backendPort])
 
@@ -104,7 +114,7 @@ export default function OPCServerPage() {
 
             const data = await response.json()
             setSaveResult(data)
-            
+
             // Clear message after 3 seconds
             setTimeout(() => setSaveResult(null), 3000)
         } catch (error) {
@@ -181,14 +191,14 @@ export default function OPCServerPage() {
                                     <button className="rounded bg-primary px-4 py-2 text-primary-foreground text-sm font-medium hover:opacity-90">
                                         Connect
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={handleTestConnection}
                                         disabled={isLoading}
                                         className="rounded border px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isLoading ? 'Testing...' : 'Test Connection'}
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={handleSave}
                                         className="rounded bg-green-600 px-4 py-2 text-white text-sm font-medium hover:opacity-90"
                                     >
@@ -211,6 +221,16 @@ export default function OPCServerPage() {
                                             {testResult.success ? '✓ Success' : '✗ Error'}
                                         </p>
                                         <p className="text-sm mt-1">{testResult.message}</p>
+
+                                        {testResult.success && testResult.details && testResult.details.children && testResult.details.children.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-current/20">
+                                                <p className="text-sm font-medium">First Child Node:</p>
+                                                <p className="text-sm mt-1 font-mono break-all">{testResult.details.children[0]}</p>
+                                                <p className="text-sm mt-2 text-xs opacity-75">
+                                                    Total children: {testResult.details.num_children}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
