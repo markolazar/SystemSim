@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 
 interface OPCNode {
     node_id: string
@@ -34,6 +34,10 @@ export default function OPCNodesPage() {
         message: string
     } | null>(null)
     const [config, setConfig] = useState<{ url: string; prefix: string } | null>(null)
+    const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+    const [pageSize, setPageSize] = useState(25)
+    const [page, setPage] = useState(1)
 
     const backendPort = import.meta.env.VITE_BACKEND_PORT
 
@@ -64,6 +68,7 @@ export default function OPCNodesPage() {
 
                 if (data.success && data.nodes) {
                     setNodes(data.nodes)
+                    setPage(1)
                 }
             } catch (error) {
                 console.error("Failed to load nodes:", error)
@@ -72,6 +77,50 @@ export default function OPCNodesPage() {
 
         loadNodes()
     }, [backendPort])
+
+    const sortedNodes = useMemo(() => {
+        const copy = [...nodes]
+        copy.sort((a, b) => {
+            const valA = a[sortKey]
+            const valB = b[sortKey]
+
+            if (valA == null && valB == null) return 0
+            if (valA == null) return 1
+            if (valB == null) return -1
+
+            if (typeof valA === "number" && typeof valB === "number") {
+                return sortDir === "asc" ? valA - valB : valB - valA
+            }
+
+            return sortDir === "asc"
+                ? String(valA).localeCompare(String(valB))
+                : String(valB).localeCompare(String(valA))
+        })
+        return copy
+    }, [nodes, sortKey, sortDir])
+
+    const totalPages = Math.max(1, Math.ceil(sortedNodes.length / pageSize))
+    const currentPage = Math.min(page, totalPages)
+
+    const pagedNodes = useMemo(() => {
+        const start = (currentPage - 1) * pageSize
+        return sortedNodes.slice(start, start + pageSize)
+    }, [sortedNodes, currentPage, pageSize])
+
+    const toggleSort = (key: keyof OPCNode) => {
+        if (sortKey === key) {
+            setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+        } else {
+            setSortKey(key)
+            setSortDir("asc")
+        }
+        setPage(1)
+    }
+
+    const goToPage = (newPage: number) => {
+        const safePage = Math.min(Math.max(newPage, 1), totalPages)
+        setPage(safePage)
+    }
 
     const handleDiscoverNodes = async () => {
         if (!config) {
@@ -190,23 +239,55 @@ export default function OPCNodesPage() {
                         {nodes.length > 0 && (
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Discovered Nodes ({nodes.length})</CardTitle>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <CardTitle>Discovered Nodes ({nodes.length})</CardTitle>
+                                        <div className="flex items-center gap-3 text-sm">
+                                            <label className="text-muted-foreground">Rows per page:</label>
+                                            <select
+                                                value={pageSize}
+                                                onChange={(e) => {
+                                                    setPageSize(Number(e.target.value))
+                                                    setPage(1)
+                                                }}
+                                                className="rounded border px-2 py-1 text-sm bg-background"
+                                            >
+                                                {[10, 25, 50, 100].map((size) => (
+                                                    <option key={size} value={size}>{size}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-sm">
                                             <thead className="border-b">
                                                 <tr>
-                                                    <th className="text-left px-4 py-2 font-medium">Node ID</th>
-                                                    <th className="text-left px-4 py-2 font-medium">Browse Name</th>
-                                                    <th className="text-left px-4 py-2 font-medium">Parent ID</th>
-                                                    <th className="text-left px-4 py-2 font-medium">Data Type</th>
-                                                    <th className="text-center px-4 py-2 font-medium">Value Rank</th>
+                                                    {([
+                                                        { key: "node_id", label: "Node ID", align: "left" },
+                                                        { key: "browse_name", label: "Browse Name", align: "left" },
+                                                        { key: "parent_id", label: "Parent ID", align: "left" },
+                                                        { key: "data_type", label: "Data Type", align: "left" },
+                                                        { key: "value_rank", label: "Value Rank", align: "center" },
+                                                    ] as const).map((col) => (
+                                                        <th
+                                                            key={col.key}
+                                                            className={`${col.align === "center" ? "text-center" : "text-left"} px-4 py-2 font-medium cursor-pointer select-none`}
+                                                            onClick={() => toggleSort(col.key)}
+                                                        >
+                                                            <div className={`flex items-center gap-1 ${col.align === "center" ? "justify-center" : ""}`}>
+                                                                <span>{col.label}</span>
+                                                                {sortKey === col.key && (
+                                                                    <span className="text-xs text-muted-foreground">{sortDir === "asc" ? "▲" : "▼"}</span>
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                    ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {nodes.map((node, idx) => (
-                                                    <tr key={idx} className="border-b hover:bg-muted/50">
+                                                {pagedNodes.map((node, idx) => (
+                                                    <tr key={`${node.node_id}-${idx}`} className="border-b hover:bg-muted/50">
                                                         <td className="px-4 py-2 font-mono text-xs break-all">
                                                             {node.node_id}
                                                         </td>
@@ -224,6 +305,32 @@ export default function OPCNodesPage() {
                                                 ))}
                                             </tbody>
                                         </table>
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                                        <span>
+                                            Showing {(currentPage - 1) * pageSize + 1}–
+                                            {Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => goToPage(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                            >
+                                                Prev
+                                            </button>
+                                            <span className="px-2">
+                                                Page {currentPage} / {totalPages}
+                                            </span>
+                                            <button
+                                                onClick={() => goToPage(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
