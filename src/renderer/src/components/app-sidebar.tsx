@@ -14,6 +14,11 @@ import {
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const handleNavigate = (page: string) => {
+        const event = new CustomEvent('navigate', { detail: { page } })
+        window.dispatchEvent(event)
+    }
+
     return (
         <Sidebar {...props}>
             <SidebarHeader>
@@ -37,16 +42,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarGroup>
                     <SidebarMenu>
                         {[
-                            { title: "OPC Server", url: "#" },
-                            { title: "SFC Designer", url: "#" },
-                            { title: "Simulation Control", url: "#" },
-                            { title: "Report / Historian", url: "#" },
+                            { title: "OPC Server", page: "opc-server" },
+                            { title: "SFC Designer", page: "dashboard" },
+                            { title: "Simulation Control", page: "#" },
+                            { title: "Report / Historian", page: "#" },
                         ].map((item) => (
                             <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton asChild>
-                                    <a href={item.url} className="font-medium">
+                                    <button
+                                        onClick={() => handleNavigate(item.page)}
+                                        className="font-medium w-full text-left"
+                                    >
                                         {item.title}
-                                    </a>
+                                    </button>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         ))}

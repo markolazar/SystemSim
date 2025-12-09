@@ -1,10 +1,33 @@
-import Page from '@renderer/dashboard/page'
+import { useState, useEffect } from 'react'
+import DashboardPage from '@renderer/dashboard/page'
+import OPCServerPage from '@renderer/opc-server/page'
 import { ThemeProvider } from "@/components/theme-provider"
 
 function App(): React.JSX.Element {
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'opc-server'>('dashboard')
+
+  useEffect(() => {
+    const handleNavigation = (event: CustomEvent) => {
+      setCurrentPage(event.detail.page)
+    }
+
+    window.addEventListener('navigate' as any, handleNavigation as EventListener)
+    return () => window.removeEventListener('navigate' as any, handleNavigation as EventListener)
+  }, [])
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'opc-server':
+        return <OPCServerPage />
+      case 'dashboard':
+      default:
+        return <DashboardPage />
+    }
+  }
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <Page />
+      {renderPage()}
     </ThemeProvider >
   )
   // const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
