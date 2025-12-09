@@ -117,7 +117,7 @@ async def discover_opc_nodes(request: OPCDiscoverRequest):
         # Save selected nodes for future use
         if request.selected_nodes:
             await save_selected_nodes(request.selected_nodes)
-        
+
         result = discover_nodes(request.url, request.prefix, request.selected_nodes)
 
         if result["success"]:
@@ -158,7 +158,10 @@ async def get_saved_selected_nodes():
         node_ids = await get_selected_nodes()
         return {"success": True, "selected_nodes": node_ids}
     except Exception as e:
-        return {"success": False, "message": f"Failed to retrieve selected nodes: {str(e)}"}
+        return {
+            "success": False,
+            "message": f"Failed to retrieve selected nodes: {str(e)}",
+        }
 
 
 if __name__ == "__main__":

@@ -171,8 +171,7 @@ async def save_selected_nodes(node_ids: list[str]):
         # Insert new selections
         for node_id in node_ids:
             await db.execute(
-                "INSERT INTO selected_nodes (node_id) VALUES (?)",
-                (node_id,)
+                "INSERT INTO selected_nodes (node_id) VALUES (?)", (node_id,)
             )
 
         await db.commit()
