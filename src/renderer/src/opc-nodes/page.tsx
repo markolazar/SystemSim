@@ -25,6 +25,7 @@ interface OPCNode {
     data_type: string | null
     value_rank: number | null
     discovered_at: string
+    short_node_id?: string
 }
 
 export default function OPCNodesPage() {
@@ -37,6 +38,9 @@ export default function OPCNodesPage() {
     const [config, setConfig] = useState<{ url: string; prefix: string } | null>(null)
     const [isConfigLoading, setIsConfigLoading] = useState(true)
     const [isNodesLoading, setIsNodesLoading] = useState(true)
+    const [children, setChildren] = useState<{ node_id: string; browse_name: string }[]>([])
+    const [isChildrenLoading, setIsChildrenLoading] = useState(true)
+    const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
     const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
     const [pageSize, setPageSize] = useState(25)
@@ -65,6 +69,49 @@ export default function OPCNodesPage() {
         loadConfig()
     }, [backendPort])
 
+    // Load first-level child nodes for selection when config is available
+    useEffect(() => {
+        const loadChildren = async () => {
+            if (!config) {
+                setChildren([])
+                setSelectedChildIds([])
+                return
+            }
+            try {
+                setIsChildrenLoading(true)
+                const response = await fetch(`http://localhost:${backendPort}/opc/children`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: config.url, prefix: config.prefix }),
+                })
+                const data = await response.json()
+                if (data.success && data.children) {
+                    setChildren(data.children)
+                    
+                    // Load saved selections, or default to all children
+                    try {
+                        const savedResponse = await fetch(`http://localhost:${backendPort}/opc/selected-nodes`)
+                        const savedData = await savedResponse.json()
+                        if (savedData.success && savedData.selected_nodes && savedData.selected_nodes.length > 0) {
+                            setSelectedChildIds(savedData.selected_nodes)
+                        } else {
+                            setSelectedChildIds(data.children.map((c: any) => c.node_id))
+                        }
+                    } catch (error) {
+                        // If loading saved selections fails, default to all selected
+                        setSelectedChildIds(data.children.map((c: any) => c.node_id))
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load children:", error)
+            } finally {
+                setIsChildrenLoading(false)
+            }
+        }
+
+        loadChildren()
+    }, [backendPort, config])
+
     // Load discovered nodes on component mount
     useEffect(() => {
         const loadNodes = async () => {
@@ -87,8 +134,17 @@ export default function OPCNodesPage() {
         loadNodes()
     }, [backendPort])
 
+    // Compute short node IDs (with prefix removed)
+    const nodesWithShortId = useMemo(() => {
+        if (!config) return nodes
+        return nodes.map(node => ({
+            ...node,
+            short_node_id: node.node_id.replace(config.prefix + '.', '')
+        }))
+    }, [nodes, config])
+
     const sortedNodes = useMemo(() => {
-        const copy = [...nodes]
+        const copy = [...nodesWithShortId]
         copy.sort((a, b) => {
             const valA = a[sortKey]
             const valB = b[sortKey]
@@ -106,7 +162,7 @@ export default function OPCNodesPage() {
                 : String(valB).localeCompare(String(valA))
         })
         return copy
-    }, [nodes, sortKey, sortDir])
+    }, [nodesWithShortId, sortKey, sortDir])
 
     const totalPages = Math.max(1, Math.ceil(sortedNodes.length / pageSize))
     const currentPage = Math.min(page, totalPages)
@@ -131,6 +187,22 @@ export default function OPCNodesPage() {
         setPage(safePage)
     }
 
+    const toggleChild = (nodeId: string) => {
+        setSelectedChildIds((prev) =>
+            prev.includes(nodeId)
+                ? prev.filter((id) => id !== nodeId)
+                : [...prev, nodeId]
+        )
+    }
+
+    const selectAllChildren = () => {
+        setSelectedChildIds(children.map((c) => c.node_id))
+    }
+
+    const clearSelection = () => {
+        setSelectedChildIds([])
+    }
+
     const handleDiscoverNodes = async () => {
         if (!config) {
             setDiscoveryResult({
@@ -152,6 +224,7 @@ export default function OPCNodesPage() {
                 body: JSON.stringify({
                     url: config.url,
                     prefix: config.prefix,
+                    selected_nodes: selectedChildIds,
                 }),
             })
 
@@ -219,6 +292,54 @@ export default function OPCNodesPage() {
                                     </button>
                                 </div>
 
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium">Select child nodes to discover</p>
+                                    {isChildrenLoading ? (
+                                        <div className="space-y-2">
+                                            {Array.from({ length: 4 }).map((_, idx) => (
+                                                <Skeleton key={idx} className="h-4 w-64" />
+                                            ))}
+                                        </div>
+                                    ) : children.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No child nodes found under this prefix.</p>
+                                    ) : (
+                                        <div className="space-y-2 border rounded p-3 max-h-48 overflow-auto">
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <button
+                                                    type="button"
+                                                    onClick={selectAllChildren}
+                                                    className="rounded border px-2 py-1 hover:bg-muted"
+                                                >
+                                                    Select all
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={clearSelection}
+                                                    className="rounded border px-2 py-1 hover:bg-muted"
+                                                >
+                                                    Clear
+                                                </button>
+                                                <span className="text-muted-foreground">
+                                                    {selectedChildIds.length}/{children.length} selected
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {children.map((child) => (
+                                                    <label key={child.node_id} className="flex items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedChildIds.includes(child.node_id)}
+                                                            onChange={() => toggleChild(child.node_id)}
+                                                        />
+                                                        <span className="font-mono text-xs break-all">{child.node_id}</span>
+                                                        <span className="text-muted-foreground">{child.browse_name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
                                 {discoveryResult && (
                                     <div
                                         className={`mt-4 p-3 rounded ${discoveryResult.success
@@ -281,8 +402,9 @@ export default function OPCNodesPage() {
                                             <thead className="border-b">
                                                 <tr>
                                                     {([
-                                                        { key: "node_id", label: "Node ID", align: "left" },
+                                                        { key: "short_node_id", label: "Short Node ID", align: "left" },
                                                         { key: "browse_name", label: "Browse Name", align: "left" },
+                                                        { key: "node_id", label: "Full Node ID", align: "left" },
                                                         { key: "parent_id", label: "Parent ID", align: "left" },
                                                         { key: "data_type", label: "Data Type", align: "left" },
                                                         { key: "value_rank", label: "Value Rank", align: "center" },
@@ -306,8 +428,9 @@ export default function OPCNodesPage() {
                                                 {isNodesLoading
                                                     ? Array.from({ length: 5 }).map((_, idx) => (
                                                         <tr key={`skeleton-${idx}`} className="border-b">
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-40" /></td>
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-48" /></td>
                                                             <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
+                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-40" /></td>
                                                             <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
                                                             <td className="px-4 py-2"><Skeleton className="h-4 w-24" /></td>
                                                             <td className="px-4 py-2 text-center"><Skeleton className="h-4 w-10 mx-auto" /></td>
@@ -316,9 +439,12 @@ export default function OPCNodesPage() {
                                                     : pagedNodes.map((node, idx) => (
                                                         <tr key={`${node.node_id}-${idx}`} className="border-b hover:bg-muted/50">
                                                             <td className="px-4 py-2 font-mono text-xs break-all">
-                                                                {node.node_id}
+                                                                {node.short_node_id || node.node_id}
                                                             </td>
                                                             <td className="px-4 py-2">{node.browse_name}</td>
+                                                            <td className="px-4 py-2 font-mono text-xs break-all text-muted-foreground">
+                                                                {node.node_id}
+                                                            </td>
                                                             <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
                                                                 {node.parent_id || "-"}
                                                             </td>

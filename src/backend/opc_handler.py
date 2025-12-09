@@ -17,9 +17,15 @@ class OPCSaveRequest(BaseModel):
 class OPCDiscoverRequest(BaseModel):
     url: str
     prefix: str
+    selected_nodes: list[str] | None = None
 
 
-def discover_nodes_recursive(node, parent_id=None, max_depth=3, current_depth=0):
+class OPCChildrenRequest(BaseModel):
+    url: str
+    prefix: str
+
+
+def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0):
     """
     Recursively discover all nodes in the OPC server
 
@@ -39,7 +45,7 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=3, current_depth=0)
 
     try:
         # Get current node info
-        node_id = str(node.nodeid)
+        node_id = node.nodeid.to_string()
         browse_name = str(node.get_browse_name())
 
         # Try to get additional info
@@ -83,6 +89,41 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=3, current_depth=0)
     return nodes
 
 
+def list_child_nodes(url: str, prefix: str):
+    """List immediate children of the given prefix node."""
+    client = None
+    try:
+        client = Client(url)
+        client.connect()
+        node = client.get_node(prefix)
+        children = node.get_children()
+        result = []
+        for child in children:
+            try:
+                result.append(
+                    {
+                        "node_id": child.nodeid.to_string(),
+                        "browse_name": str(child.get_browse_name()),
+                    }
+                )
+            except Exception:
+                result.append({"node_id": child.nodeid.to_string(), "browse_name": ""})
+        return {"success": True, "children": result}
+    except Exception as e:
+        import traceback
+
+        traceback_str = traceback.format_exc()
+        print(f"OPC Children Error: {e}")
+        print(traceback_str)
+        return {"success": False, "message": f"Failed to list children: {e}"}
+    finally:
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+
+
 def connect_to_opc_server(url: str, prefix: str):
     """
     Connect to OPC UA server and retrieve node information
@@ -114,9 +155,9 @@ def connect_to_opc_server(url: str, prefix: str):
             "success": True,
             "message": f"Successfully connected to {url} and found node {prefix}",
             "details": {
-                "node_id": str(node.nodeid),
+                "node_id": node.nodeid.to_string(),
                 "num_children": len(children),
-                "children": [str(child) for child in children],
+                "children": [child.nodeid.to_string() for child in children],
             },
         }
 
@@ -140,7 +181,7 @@ def connect_to_opc_server(url: str, prefix: str):
                 print(f"Error disconnecting: {disconnect_error}")
 
 
-def discover_nodes(url: str, prefix: str):
+def discover_nodes(url: str, prefix: str, selected_nodes: list[str] | None = None):
     """
     Discover all nodes recursively from the specified node
 
@@ -159,12 +200,17 @@ def discover_nodes(url: str, prefix: str):
         client.connect()
         print(f"Connected to {url}")
 
-        # Get the starting node
-        node = client.get_node(prefix)
-        print(f"Starting discovery from node: {prefix}")
+        start_ids = selected_nodes if selected_nodes else [prefix]
+        discovered_nodes = []
 
-        # Recursively discover all nodes
-        discovered_nodes = discover_nodes_recursive(node)
+        for node_id in start_ids:
+            try:
+                node = client.get_node(node_id)
+                print(f"Starting discovery from node: {node_id}")
+                discovered_nodes.extend(discover_nodes_recursive(node))
+            except Exception as e:
+                print(f"Could not start discovery at {node_id}: {e}")
+
         print(f"Discovered {len(discovered_nodes)} total nodes")
 
         return {

@@ -44,6 +44,17 @@ async def init_database():
         """
         )
 
+        # Create selected nodes table
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS selected_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL UNIQUE,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
         await db.commit()
 
 
@@ -147,3 +158,31 @@ async def get_opc_nodes():
         rows = await cursor.fetchall()
 
         return [dict(row) for row in rows]
+
+
+async def save_selected_nodes(node_ids: list[str]):
+    """Save selected node IDs for discovery"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Clear existing selections
+        await db.execute("DELETE FROM selected_nodes")
+
+        # Insert new selections
+        for node_id in node_ids:
+            await db.execute(
+                "INSERT INTO selected_nodes (node_id) VALUES (?)",
+                (node_id,)
+            )
+
+        await db.commit()
+
+
+async def get_selected_nodes():
+    """Retrieve selected node IDs from database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute("SELECT node_id FROM selected_nodes ORDER BY node_id")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]

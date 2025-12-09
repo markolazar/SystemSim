@@ -12,13 +12,17 @@ from database import (
     get_opc_config,
     save_opc_nodes,
     get_opc_nodes,
+    save_selected_nodes,
+    get_selected_nodes,
 )
 from opc_handler import (
     OPCTestRequest,
     OPCSaveRequest,
     OPCDiscoverRequest,
+    OPCChildrenRequest,
     connect_to_opc_server,
     discover_nodes,
+    list_child_nodes,
 )
 
 
@@ -110,10 +114,14 @@ async def get_opc_configuration():
 async def discover_opc_nodes(request: OPCDiscoverRequest):
     """Discover all OPC nodes recursively and save to database"""
     try:
-        result = discover_nodes(request.url, request.prefix)
+        # Save selected nodes for future use
+        if request.selected_nodes:
+            await save_selected_nodes(request.selected_nodes)
+        
+        result = discover_nodes(request.url, request.prefix, request.selected_nodes)
 
         if result["success"]:
-            # Save discovered nodes to database
+            # Save discovered nodes to database (this clears previous nodes automatically)
             await save_opc_nodes(result["nodes"])
             return {
                 "success": True,
@@ -126,6 +134,13 @@ async def discover_opc_nodes(request: OPCDiscoverRequest):
         return {"success": False, "message": f"Failed to discover nodes: {str(e)}"}
 
 
+@app.post("/opc/children")
+async def list_opc_children(request: OPCChildrenRequest):
+    """List immediate child nodes under the provided prefix"""
+    result = list_child_nodes(request.url, request.prefix)
+    return result
+
+
 @app.get("/opc/nodes")
 async def get_discovered_nodes():
     """Get all discovered OPC nodes from database"""
@@ -134,6 +149,16 @@ async def get_discovered_nodes():
         return {"success": True, "nodes": nodes, "count": len(nodes)}
     except Exception as e:
         return {"success": False, "message": f"Failed to retrieve nodes: {str(e)}"}
+
+
+@app.get("/opc/selected-nodes")
+async def get_saved_selected_nodes():
+    """Get saved selected node IDs from database"""
+    try:
+        node_ids = await get_selected_nodes()
+        return {"success": True, "selected_nodes": node_ids}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to retrieve selected nodes: {str(e)}"}
 
 
 if __name__ == "__main__":
