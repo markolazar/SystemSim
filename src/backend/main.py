@@ -5,23 +5,9 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from opcua import Client
 
 from database import init_database, save_opc_config, get_opc_config
-
-ASYNCUA_AVAILABLE = False
-OPCClient = None
-
-
-class OPCTestRequest(BaseModel):
-    url: str
-    prefix: str
-
-
-class OPCSaveRequest(BaseModel):
-    url: str
-    prefix: str
+from opc_handler import OPCTestRequest, OPCSaveRequest, connect_to_opc_server
 
 
 def get_base_path():
@@ -74,51 +60,8 @@ def read_data():
 @app.post("/opc/test-connection")
 async def test_opc_connection(request: OPCTestRequest):
     """Test OPC UA server connection and check if node exists"""
-
-    client = None
-
-    try:
-        # Create and connect client
-        client = Client(request.url)
-        client.connect()
-        print(f"Connected to {request.url}")
-
-        # Get the node
-        node = client.get_node(request.prefix)
-        # List children of the node
-        children = node.get_children()
-        print("Children of node:")
-        for child in children:
-            print(f"  Child: {child}")
-
-        return {
-            "success": True,
-            "message": f"Successfully connected to {request.url} and found node {request.prefix}",
-            "details": {
-                "node_id": str(node.nodeid),
-                "num_children": len(children),
-                "children": [str(child) for child in children],
-            },
-        }
-
-    except Exception as e:
-        import traceback
-
-        traceback_str = traceback.format_exc()
-        print(f"OPC Connection Error: {e}")
-        print(traceback_str)
-        return {
-            "success": False,
-            "message": f"Failed to connect or read node: {e}",
-        }
-
-    finally:
-        if client is not None:
-            try:
-                client.disconnect()
-                print("Disconnected from OPC UA server")
-            except Exception as disconnect_error:
-                print(f"Error disconnecting: {disconnect_error}")
+    result = connect_to_opc_server(request.url, request.prefix)
+    return result
 
 
 @app.post("/opc/save")
