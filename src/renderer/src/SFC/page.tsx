@@ -189,6 +189,7 @@ function SFCEditor() {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
     const [nextNodeId, setNextNodeId] = useState(3);
+    const [copiedNode, setCopiedNode] = useState<any>(null);
 
     // Set Value modal state
     const [showSetValueModal, setShowSetValueModal] = useState(false);
@@ -229,6 +230,34 @@ function SFCEditor() {
         setNodes((nds) => nds.filter((node) => node.id !== nodeId));
         setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
         setNodeContextMenu(null);
+    };
+
+    const copyNode = (nodeId: string) => {
+        const node = nodes.find((n) => n.id === nodeId);
+        if (node && node.type !== 'start' && node.type !== 'end') {
+            setCopiedNode(node);
+        }
+        setNodeContextMenu(null);
+    };
+
+    const pasteNode = () => {
+        if (!copiedNode || !contextMenu) return;
+
+        const position = reactFlowInstance.screenToFlowPosition({
+            x: contextMenu.x,
+            y: contextMenu.y,
+        });
+
+        const nodeId = `n${nextNodeId}`;
+        const newNode = {
+            ...copiedNode,
+            id: nodeId,
+            position,
+            data: { ...copiedNode.data, nodeId },
+        };
+        setNodes([...nodes, newNode]);
+        setNextNodeId(nextNodeId + 1);
+        setContextMenu(null);
     };
 
     const handleSetValueModalClose = () => {
@@ -407,11 +436,38 @@ function SFCEditor() {
                 </div>
             </div>
 
+            {/* Canvas context menu */}
+            {contextMenu && copiedNode && (
+                <div
+                    className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+                    style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+                >
+                    <button
+                        onClick={pasteNode}
+                        className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
+                    >
+                        Paste Node
+                    </button>
+                </div>
+            )}
+
             {nodeContextMenu && (
                 <div
                     className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
                     style={{ top: `${nodeContextMenu.y}px`, left: `${nodeContextMenu.x}px` }}
                 >
+                    {(() => {
+                        const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
+                        const canCopy = node && node.type !== 'start' && node.type !== 'end';
+                        return canCopy ? (
+                            <button
+                                onClick={() => copyNode(nodeContextMenu.nodeId)}
+                                className="block w-full text-left px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm text-blue-600 dark:text-blue-400"
+                            >
+                                Copy Node
+                            </button>
+                        ) : null;
+                    })()}
                     <button
                         onClick={() => deleteNode(nodeContextMenu.nodeId)}
                         className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
