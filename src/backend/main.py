@@ -188,18 +188,18 @@ async def opc_node_autocomplete(search: str = ""):
 
 # SFC Design endpoints
 
+
 @app.post("/sfc/designs")
 async def create_design(request: dict):
     """Create a new SFC design"""
     try:
         design_id = await create_sfc_design(
-            request.get("name", "Untitled Design"),
-            request.get("description", "")
+            request.get("name", "Untitled Design"), request.get("description", "")
         )
         return {
             "success": True,
             "message": "SFC design created successfully",
-            "design_id": design_id
+            "design_id": design_id,
         }
     except Exception as e:
         return {"success": False, "message": f"Failed to create design: {str(e)}"}
@@ -233,9 +233,7 @@ async def save_design_data(design_id: int, request: dict):
     """Save SFC design data (nodes and edges)"""
     try:
         await save_sfc_design_data(
-            design_id,
-            request.get("nodes", "[]"),
-            request.get("edges", "[]")
+            design_id, request.get("nodes", "[]"), request.get("edges", "[]")
         )
         return {"success": True, "message": "Design saved successfully"}
     except Exception as e:
@@ -249,7 +247,7 @@ async def update_design_metadata(design_id: int, request: dict):
         await update_sfc_design(
             design_id,
             request.get("name", "Untitled Design"),
-            request.get("description", "")
+            request.get("description", ""),
         )
         return {"success": True, "message": "Design updated successfully"}
     except Exception as e:

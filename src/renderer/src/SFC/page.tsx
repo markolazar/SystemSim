@@ -308,14 +308,14 @@ function SFCEditor() {
             if (data.success && data.design) {
                 const design = data.design;
                 setCurrentDesignId(designId);
-                
+
                 // Parse nodes and edges from JSON strings
                 const loadedNodes = JSON.parse(design.nodes || '[]');
                 const loadedEdges = JSON.parse(design.edges || '[]');
-                
+
                 setNodes(loadedNodes.length > 0 ? loadedNodes : initialNodes);
                 setEdges(loadedEdges.length > 0 ? loadedEdges : initialEdges);
-                
+
                 // Update nextNodeId based on loaded nodes
                 if (loadedNodes.length > 0) {
                     const maxId = Math.max(...loadedNodes.map((n: any) => parseInt(n.id.replace('n', '')) || 0));
@@ -568,354 +568,354 @@ function SFCEditor() {
             </div>
 
             <div className="flex-1 min-h-0 flex relative">
-            {/* Main canvas area */}
-            <div className="flex-1 min-h-0" onContextMenu={handleContextMenu}>
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    nodeTypes={customNodeTypes}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    onConnect={onConnect}
-                    onDrop={onDrop}
-                    onDragOver={onDragOver}
-                    onNodeContextMenu={onNodeContextMenu}
-                    fitView
-                    defaultEdgeOptions={{ animated: true, style: { strokeWidth: 2, stroke: '#94a3b8' }, markerEnd: { type: 'arrowclosed' as const } }}
-                    style={{ width: '100%', height: '100%' }}
-                />
-            </div>
-
-            {/* Right pane with draggable nodes */}
-            <div className="w-64 border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 p-4 overflow-y-auto">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Node Types</h3>
-                <div className="space-y-3">
-                    {nodeTypesConfig.map((nodeType) => (
-                        <div
-                            key={nodeType.type}
-                            draggable
-                            onDragStart={(event) => {
-                                event.dataTransfer.setData('application/reactflow', nodeType.label);
-                                event.dataTransfer.effectAllowed = 'move';
-                            }}
-                            className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
-                            style={{
-                                borderColor: nodeType.color,
-                                backgroundColor: nodeType.bgColor
-                            }}
-                        >
-                            <div className="flex items-center gap-3 mb-2">
-                                <div
-                                    className="w-8 h-8 rounded"
-                                    style={{
-                                        backgroundColor: nodeType.color,
-                                        ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
-                                        ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
-                                        ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
-                                    }}
-                                />
-                                <span className="font-medium text-gray-900" style={{ color: nodeType.color }}>{nodeType.label}</span>
-                            </div>
-                            <p className="text-xs text-gray-700">{nodeType.description}</p>
-                        </div>
-                    ))}
+                {/* Main canvas area */}
+                <div className="flex-1 min-h-0" onContextMenu={handleContextMenu}>
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        nodeTypes={customNodeTypes}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
+                        onNodeContextMenu={onNodeContextMenu}
+                        fitView
+                        defaultEdgeOptions={{ animated: true, style: { strokeWidth: 2, stroke: '#94a3b8' }, markerEnd: { type: 'arrowclosed' as const } }}
+                        style={{ width: '100%', height: '100%' }}
+                    />
                 </div>
-                <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-xs text-blue-800 dark:text-blue-300">
-                        <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for more options.
-                    </p>
-                </div>
-            </div>
 
-            {/* Canvas context menu */}
-            {contextMenu && copiedNode && (
-                <div
-                    className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
-                    style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-                >
-                    <button
-                        onClick={pasteNode}
-                        className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
-                    >
-                        Paste Node
-                    </button>
-                </div>
-            )}
-
-            {nodeContextMenu && (
-                <div
-                    className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
-                    style={{ top: `${nodeContextMenu.y}px`, left: `${nodeContextMenu.x}px` }}
-                >
-                    {(() => {
-                        const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
-                        const canCopy = node && node.type !== 'start' && node.type !== 'end';
-                        return canCopy ? (
-                            <button
-                                onClick={() => copyNode(nodeContextMenu.nodeId)}
-                                className="block w-full text-left px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm text-blue-600 dark:text-blue-400"
+                {/* Right pane with draggable nodes */}
+                <div className="w-64 border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 p-4 overflow-y-auto">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Node Types</h3>
+                    <div className="space-y-3">
+                        {nodeTypesConfig.map((nodeType) => (
+                            <div
+                                key={nodeType.type}
+                                draggable
+                                onDragStart={(event) => {
+                                    event.dataTransfer.setData('application/reactflow', nodeType.label);
+                                    event.dataTransfer.effectAllowed = 'move';
+                                }}
+                                className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
+                                style={{
+                                    borderColor: nodeType.color,
+                                    backgroundColor: nodeType.bgColor
+                                }}
                             >
-                                Copy Node
-                            </button>
-                        ) : null;
-                    })()}
-                    <button
-                        onClick={() => deleteNode(nodeContextMenu.nodeId)}
-                        className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
-                    >
-                        Delete Node
-                    </button>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div
+                                        className="w-8 h-8 rounded"
+                                        style={{
+                                            backgroundColor: nodeType.color,
+                                            ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
+                                            ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
+                                            ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
+                                        }}
+                                    />
+                                    <span className="font-medium text-gray-900" style={{ color: nodeType.color }}>{nodeType.label}</span>
+                                </div>
+                                <p className="text-xs text-gray-700">{nodeType.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <p className="text-xs text-blue-800 dark:text-blue-300">
+                            <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for more options.
+                        </p>
+                    </div>
                 </div>
-            )}
 
-            {/* Set Value Modal */}
-            <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Configure Set Value Node</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {/* Type Selection */}
-                        <div className="space-y-2">
-                            <Label htmlFor="type">Value Type</Label>
-                            <Select value={setValueForm.type} onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}>
-                                <SelectTrigger id="type">
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="float">Float</SelectItem>
-                                    <SelectItem value="bool">Boolean</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* OPC Node */}
-                        <div className="space-y-2">
-                            <Label htmlFor="opcNode">OPC Node</Label>
-                            <OPCAutocomplete
-                                id="opcNode"
-                                value={setValueForm.opcNode}
-                                onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
-                                placeholder="e.g., ns=2;s=Variable1"
-                            />
-                        </div>
-
-                        {/* Start Value */}
-                        <div className="space-y-2">
-                            <Label htmlFor="startValue">Start Value</Label>
-                            <Input
-                                id="startValue"
-                                placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
-                                value={setValueForm.startValue}
-                                onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
-                            />
-                        </div>
-
-                        {/* End Value */}
-                        <div className="space-y-2">
-                            <Label htmlFor="endValue">End Value</Label>
-                            <Input
-                                id="endValue"
-                                placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
-                                value={setValueForm.endValue}
-                                onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
-                            />
-                        </div>
-
-                        {/* Time */}
-                        <div className="space-y-2">
-                            <Label htmlFor="time">Time (seconds)</Label>
-                            <Input
-                                id="time"
-                                type="number"
-                                placeholder="e.g., 10"
-                                value={setValueForm.time}
-                                onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
-                            />
-                        </div>
+                {/* Canvas context menu */}
+                {contextMenu && copiedNode && (
+                    <div
+                        className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+                        style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+                    >
+                        <button
+                            onClick={pasteNode}
+                            className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
+                        >
+                            Paste Node
+                        </button>
                     </div>
+                )}
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleSetValueModalClose}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSetValueSubmit}>
-                            Save Configuration
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* New Design Dialog */}
-            <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
-                <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Create New SFC Design</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="designName">Design Name</Label>
-                            <Input
-                                id="designName"
-                                placeholder="My SFC Design"
-                                value={newDesignName}
-                                onChange={(e) => setNewDesignName(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="designDescription">Description (optional)</Label>
-                            <Input
-                                id="designDescription"
-                                placeholder="Description of the design"
-                                value={newDesignDescription}
-                                onChange={(e) => setNewDesignDescription(e.target.value)}
-                            />
-                        </div>
+                {nodeContextMenu && (
+                    <div
+                        className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+                        style={{ top: `${nodeContextMenu.y}px`, left: `${nodeContextMenu.x}px` }}
+                    >
+                        {(() => {
+                            const node = nodes.find((n) => n.id === nodeContextMenu.nodeId);
+                            const canCopy = node && node.type !== 'start' && node.type !== 'end';
+                            return canCopy ? (
+                                <button
+                                    onClick={() => copyNode(nodeContextMenu.nodeId)}
+                                    className="block w-full text-left px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm text-blue-600 dark:text-blue-400"
+                                >
+                                    Copy Node
+                                </button>
+                            ) : null;
+                        })()}
+                        <button
+                            onClick={() => deleteNode(nodeContextMenu.nodeId)}
+                            className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
+                        >
+                            Delete Node
+                        </button>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowNewDesignDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={createNewDesign}>
-                            Create
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                )}
 
-            {/* Browse Designs Dialog */}
-            <Dialog open={showBrowseDesignsDialog} onOpenChange={setShowBrowseDesignsDialog}>
-                <DialogContent className="sm:max-w-[700px] max-h-[600px]">
-                    <DialogHeader>
-                        <DialogTitle>Open SFC Design</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        {designs.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                <p>No designs found. Create a new design to get started.</p>
+                {/* Set Value Modal */}
+                <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Configure Set Value Node</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            {/* Type Selection */}
+                            <div className="space-y-2">
+                                <Label htmlFor="type">Value Type</Label>
+                                <Select value={setValueForm.type} onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}>
+                                    <SelectTrigger id="type">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="float">Float</SelectItem>
+                                        <SelectItem value="bool">Boolean</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        ) : (
-                            <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-                                <table className="w-full">
-                                    <thead className="bg-gray-50 dark:bg-gray-900">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Updated</th>
-                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white dark:bg-slate-950 divide-y divide-gray-200 dark:divide-gray-700">
-                                        {designs.map((design) => (
-                                            <tr key={design.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                                                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    {design.name}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                                                    {design.description || '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                                                    {new Date(design.updated_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-right space-x-2">
-                                                    <Button
-                                                        onClick={() => loadDesign(design.id)}
-                                                        size="sm"
-                                                        variant="default"
-                                                    >
-                                                        Open
-                                                    </Button>
-                                                    <Button
-                                                        onClick={() => deleteDesign(design.id)}
-                                                        size="sm"
-                                                        variant="destructive"
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </td>
+
+                            {/* OPC Node */}
+                            <div className="space-y-2">
+                                <Label htmlFor="opcNode">OPC Node</Label>
+                                <OPCAutocomplete
+                                    id="opcNode"
+                                    value={setValueForm.opcNode}
+                                    onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
+                                    placeholder="e.g., ns=2;s=Variable1"
+                                />
+                            </div>
+
+                            {/* Start Value */}
+                            <div className="space-y-2">
+                                <Label htmlFor="startValue">Start Value</Label>
+                                <Input
+                                    id="startValue"
+                                    placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
+                                    value={setValueForm.startValue}
+                                    onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
+                                />
+                            </div>
+
+                            {/* End Value */}
+                            <div className="space-y-2">
+                                <Label htmlFor="endValue">End Value</Label>
+                                <Input
+                                    id="endValue"
+                                    placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
+                                    value={setValueForm.endValue}
+                                    onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
+                                />
+                            </div>
+
+                            {/* Time */}
+                            <div className="space-y-2">
+                                <Label htmlFor="time">Time (seconds)</Label>
+                                <Input
+                                    id="time"
+                                    type="number"
+                                    placeholder="e.g., 10"
+                                    value={setValueForm.time}
+                                    onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={handleSetValueModalClose}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSetValueSubmit}>
+                                Save Configuration
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* New Design Dialog */}
+                <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle>Create New SFC Design</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="designName">Design Name</Label>
+                                <Input
+                                    id="designName"
+                                    placeholder="My SFC Design"
+                                    value={newDesignName}
+                                    onChange={(e) => setNewDesignName(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="designDescription">Description (optional)</Label>
+                                <Input
+                                    id="designDescription"
+                                    placeholder="Description of the design"
+                                    value={newDesignDescription}
+                                    onChange={(e) => setNewDesignDescription(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowNewDesignDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={createNewDesign}>
+                                Create
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Browse Designs Dialog */}
+                <Dialog open={showBrowseDesignsDialog} onOpenChange={setShowBrowseDesignsDialog}>
+                    <DialogContent className="sm:max-w-[700px] max-h-[600px]">
+                        <DialogHeader>
+                            <DialogTitle>Open SFC Design</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            {designs.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    <p>No designs found. Create a new design to get started.</p>
+                                </div>
+                            ) : (
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                                    <table className="w-full">
+                                        <thead className="bg-gray-50 dark:bg-gray-900">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Updated</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowBrowseDesignsDialog(false)}>
-                            Close
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                                        </thead>
+                                        <tbody className="bg-white dark:bg-slate-950 divide-y divide-gray-200 dark:divide-gray-700">
+                                            {designs.map((design) => (
+                                                <tr key={design.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                        {design.name}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                        {design.description || '-'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                        {new Date(design.updated_at).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-right space-x-2">
+                                                        <Button
+                                                            onClick={() => loadDesign(design.id)}
+                                                            size="sm"
+                                                            variant="default"
+                                                        >
+                                                            Open
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => deleteDesign(design.id)}
+                                                            size="sm"
+                                                            variant="destructive"
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowBrowseDesignsDialog(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Save Success Dialog */}
-            <Dialog open={showSaveSuccessDialog} onOpenChange={setShowSaveSuccessDialog}>
-                <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Success</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Design saved successfully!
-                        </p>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setShowSaveSuccessDialog(false)}>
-                            OK
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Save Success Dialog */}
+                <Dialog open={showSaveSuccessDialog} onOpenChange={setShowSaveSuccessDialog}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle>Success</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Design saved successfully!
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => setShowSaveSuccessDialog(false)}>
+                                OK
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Error Dialog */}
-            <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
-                <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Error</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                            {errorMessage}
-                        </p>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setShowErrorDialog(false)}>
-                            OK
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Error Dialog */}
+                <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle>Error</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                                {errorMessage}
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={() => setShowErrorDialog(false)}>
+                                OK
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-                <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                        <DialogTitle>Confirm Delete</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Are you sure you want to delete this design? This action cannot be undone.
-                        </p>
-                    </div>
-                    <DialogFooter>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => {
-                                setShowDeleteConfirmDialog(false);
-                                setDesignToDelete(null);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button 
-                            variant="destructive"
-                            onClick={confirmDeleteDesign}
-                        >
-                            Delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+                    <DialogContent className="sm:max-w-[400px]">
+                        <DialogHeader>
+                            <DialogTitle>Confirm Delete</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                Are you sure you want to delete this design? This action cannot be undone.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowDeleteConfirmDialog(false);
+                                    setDesignToDelete(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={confirmDeleteDesign}
+                            >
+                                Delete
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

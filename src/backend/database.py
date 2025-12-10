@@ -269,6 +269,7 @@ async def get_opc_node_autocomplete(search_term: str = ""):
 
 # SFC Design CRUD operations
 
+
 async def create_sfc_design(name: str, description: str = ""):
     """Create a new SFC design"""
     db_path = get_db_path()
@@ -308,7 +309,7 @@ async def get_sfc_design(design_id: int):
 
     async with aiosqlite.connect(db_path) as db:
         db.row_factory = aiosqlite.Row
-        
+
         # Get design info
         cursor = await db.execute(
             """
@@ -359,7 +360,7 @@ async def save_sfc_design_data(design_id: int, nodes: str, edges: str):
         """,
             (design_id, nodes, edges),
         )
-        
+
         # Update the design's updated_at timestamp
         await db.execute(
             """
@@ -369,7 +370,7 @@ async def save_sfc_design_data(design_id: int, nodes: str, edges: str):
         """,
             (design_id,),
         )
-        
+
         await db.commit()
 
 
