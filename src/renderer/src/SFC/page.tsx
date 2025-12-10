@@ -159,7 +159,7 @@ function SFCEditor() {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
     const [nextNodeId, setNextNodeId] = useState(3);
-    
+
     // Set Value modal state
     const [showSetValueModal, setShowSetValueModal] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -294,7 +294,7 @@ function SFCEditor() {
             const customEvent = event as CustomEvent;
             const nodeId = customEvent.detail.nodeId;
             setSelectedNodeId(nodeId);
-            
+
             // Load existing values from the node if they exist
             const node = nodes.find(n => n.id === nodeId);
             if (node?.data && (node.data as any).setValueConfig) {
@@ -308,7 +308,7 @@ function SFCEditor() {
                     time: '',
                 });
             }
-            
+
             setShowSetValueModal(true);
         };
 
