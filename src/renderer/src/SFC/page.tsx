@@ -1,6 +1,23 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, useReactFlow, ReactFlowProvider, Handle, Position, MarkerType } from '@xyflow/react';
+import { useState, useCallback, useEffect } from 'react';
+import { ReactFlow, applyNodeChanges, applyEdgeChanges, addEdge, useReactFlow, ReactFlowProvider, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 const nodeTypesConfig = [
     { type: 'start', label: 'Start', color: '#10b981', bgColor: '#d1fae5', description: 'Starting point of the flow', shape: 'circle' },
@@ -67,24 +84,36 @@ const ConditionNode = ({ data }: any) => (
     </div>
 );
 
-const SetValueNode = ({ data }: any) => (
-    <div style={{
-        padding: '12px 18px',
-        border: `3px solid ${data.color}`,
-        backgroundColor: data.bgColor,
-        minWidth: '110px',
-        textAlign: 'center',
-        fontWeight: '600',
-        fontSize: '13px',
-        color: '#1f2937',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        borderRadius: '4px',
-    }}>
-        <Handle type="target" position={Position.Left} style={{ background: data.color }} />
-        {data.label}
-        <Handle type="source" position={Position.Right} style={{ background: data.color }} />
-    </div>
-);
+const SetValueNode = ({ data }: any) => {
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } });
+        window.dispatchEvent(event);
+    };
+
+    return (
+        <div
+            style={{
+                padding: '12px 18px',
+                border: `3px solid ${data.color}`,
+                backgroundColor: data.bgColor,
+                minWidth: '110px',
+                textAlign: 'center',
+                fontWeight: '600',
+                fontSize: '13px',
+                color: '#1f2937',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+            }}
+            onDoubleClick={handleDoubleClick}
+        >
+            <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+            {data.label}
+            <Handle type="source" position={Position.Right} style={{ background: data.color }} />
+        </div>
+    );
+};
 
 const WaitNode = ({ data }: any) => (
     <div style={{
@@ -117,8 +146,8 @@ const customNodeTypes = {
 };
 
 const initialNodes = [
-    { id: 'n1', type: 'start', position: { x: 0, y: 0 }, data: { label: 'Start', color: '#10b981', bgColor: '#d1fae5' } },
-    { id: 'n2', type: 'setvalue', position: { x: 250, y: 0 }, data: { label: 'Set Value', color: '#8b5cf6', bgColor: '#ede9fe' } },
+    { id: 'n1', type: 'start', position: { x: 0, y: 0 }, data: { label: 'Start', color: '#10b981', bgColor: '#d1fae5', nodeId: 'n1' } },
+    { id: 'n2', type: 'setvalue', position: { x: 250, y: 0 }, data: { label: 'Set Value', color: '#8b5cf6', bgColor: '#ede9fe', nodeId: 'n2' } },
 ];
 const initialEdges = [{ id: 'n1-n2', source: 'n1', target: 'n2', animated: true, style: { strokeWidth: 2 }, markerEnd: { type: 'arrowclosed' as const } }];
 
@@ -130,7 +159,17 @@ function SFCEditor() {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
     const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
     const [nextNodeId, setNextNodeId] = useState(3);
-    const contextMenuRef = useRef<HTMLDivElement>(null);
+    
+    // Set Value modal state
+    const [showSetValueModal, setShowSetValueModal] = useState(false);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [setValueForm, setSetValueForm] = useState({
+        type: 'float',
+        opcNode: '',
+        startValue: '',
+        endValue: '',
+        time: '',
+    });
 
     const onNodesChange = useCallback(
         (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
@@ -162,17 +201,51 @@ function SFCEditor() {
         setNodeContextMenu(null);
     };
 
+    const handleSetValueModalClose = () => {
+        setShowSetValueModal(false);
+        setSelectedNodeId(null);
+        setSetValueForm({
+            type: 'float',
+            opcNode: '',
+            startValue: '',
+            endValue: '',
+            time: '',
+        });
+    };
+
+    const handleSetValueSubmit = () => {
+        if (selectedNodeId) {
+            // Update the node data with the form values
+            setNodes((nds) =>
+                nds.map((node) => {
+                    if (node.id === selectedNodeId) {
+                        return {
+                            ...node,
+                            data: {
+                                ...node.data,
+                                setValueConfig: { ...setValueForm },
+                            },
+                        };
+                    }
+                    return node;
+                })
+            );
+        }
+        handleSetValueModalClose();
+    };
+
     const addBlock = (blockType: string, position?: { x: number; y: number }) => {
         const typeConfig = nodeTypesConfig.find(t => t.label === blockType);
         const nodeType = typeConfig?.type || 'step';
         const color = typeConfig?.color || '#10b981';
         const bgColor = typeConfig?.bgColor || '#d1fae5';
 
+        const nodeId = `n${nextNodeId}`;
         const newNode = {
-            id: `n${nextNodeId}`,
+            id: nodeId,
             type: nodeType,
             position: position || (contextMenu ? { x: contextMenu.x - 200, y: contextMenu.y - 100 } : { x: 0, y: 0 }),
-            data: { label: `${blockType} ${nextNodeId}`, color, bgColor },
+            data: { label: `${blockType} ${nextNodeId}`, color, bgColor, nodeId },
         };
         setNodes([...nodes, newNode]);
         setNextNodeId(nextNodeId + 1);
@@ -214,6 +287,34 @@ function SFCEditor() {
         document.addEventListener('click', handleClick);
         return () => document.removeEventListener('click', handleClick);
     }, [contextMenu, nodeContextMenu]);
+
+    // Handle Set Value modal open event
+    useEffect(() => {
+        const handleOpenModal = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            const nodeId = customEvent.detail.nodeId;
+            setSelectedNodeId(nodeId);
+            
+            // Load existing values from the node if they exist
+            const node = nodes.find(n => n.id === nodeId);
+            if (node?.data && (node.data as any).setValueConfig) {
+                setSetValueForm((node.data as any).setValueConfig);
+            } else {
+                setSetValueForm({
+                    type: 'float',
+                    opcNode: '',
+                    startValue: '',
+                    endValue: '',
+                    time: '',
+                });
+            }
+            
+            setShowSetValueModal(true);
+        };
+
+        window.addEventListener('openSetValueModal', handleOpenModal);
+        return () => window.removeEventListener('openSetValueModal', handleOpenModal);
+    }, [nodes]);
 
     return (
         <div className="w-full h-full min-h-0 flex relative">
@@ -289,6 +390,84 @@ function SFCEditor() {
                     </button>
                 </div>
             )}
+
+            {/* Set Value Modal */}
+            <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Configure Set Value Node</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {/* Type Selection */}
+                        <div className="space-y-2">
+                            <Label htmlFor="type">Value Type</Label>
+                            <Select value={setValueForm.type} onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}>
+                                <SelectTrigger id="type">
+                                    <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="float">Float</SelectItem>
+                                    <SelectItem value="bool">Boolean</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* OPC Node */}
+                        <div className="space-y-2">
+                            <Label htmlFor="opcNode">OPC Node</Label>
+                            <Input
+                                id="opcNode"
+                                placeholder="e.g., ns=2;s=Variable1"
+                                value={setValueForm.opcNode}
+                                onChange={(e) => setSetValueForm({ ...setValueForm, opcNode: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Start Value */}
+                        <div className="space-y-2">
+                            <Label htmlFor="startValue">Start Value</Label>
+                            <Input
+                                id="startValue"
+                                placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
+                                value={setValueForm.startValue}
+                                onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
+                            />
+                        </div>
+
+                        {/* End Value */}
+                        <div className="space-y-2">
+                            <Label htmlFor="endValue">End Value</Label>
+                            <Input
+                                id="endValue"
+                                placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
+                                value={setValueForm.endValue}
+                                onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Time */}
+                        <div className="space-y-2">
+                            <Label htmlFor="time">Time (seconds)</Label>
+                            <Input
+                                id="time"
+                                type="number"
+                                placeholder="e.g., 10"
+                                value={setValueForm.time}
+                                onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleSetValueModalClose}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSetValueSubmit}>
+                            Save Configuration
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
