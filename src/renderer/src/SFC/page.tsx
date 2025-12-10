@@ -812,8 +812,8 @@ function SFCEditor() {
 
       <div className="flex-1 min-h-0 flex relative">
         {/* Main canvas area */}
-        <div 
-          className="flex-1 min-h-0" 
+        <div
+          className="flex-1 min-h-0"
           onContextMenu={handleContextMenu}
           onClick={() => {
             setContextMenu(null)
