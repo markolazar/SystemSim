@@ -16,6 +16,12 @@ from database import (
     save_selected_nodes,
     get_selected_nodes,
     get_opc_node_autocomplete,
+    create_sfc_design,
+    get_all_sfc_designs,
+    get_sfc_design,
+    save_sfc_design_data,
+    update_sfc_design,
+    delete_sfc_design,
 )
 from opc_handler import (
     OPCTestRequest,
@@ -178,6 +184,86 @@ async def opc_node_autocomplete(search: str = ""):
             "success": False,
             "message": f"Failed to retrieve autocomplete nodes: {str(e)}",
         }
+
+
+# SFC Design endpoints
+
+@app.post("/sfc/designs")
+async def create_design(request: dict):
+    """Create a new SFC design"""
+    try:
+        design_id = await create_sfc_design(
+            request.get("name", "Untitled Design"),
+            request.get("description", "")
+        )
+        return {
+            "success": True,
+            "message": "SFC design created successfully",
+            "design_id": design_id
+        }
+    except Exception as e:
+        return {"success": False, "message": f"Failed to create design: {str(e)}"}
+
+
+@app.get("/sfc/designs")
+async def list_designs():
+    """Get all SFC designs"""
+    try:
+        designs = await get_all_sfc_designs()
+        return {"success": True, "designs": designs}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to retrieve designs: {str(e)}"}
+
+
+@app.get("/sfc/designs/{design_id}")
+async def get_design(design_id: int):
+    """Get a specific SFC design with its data"""
+    try:
+        design = await get_sfc_design(design_id)
+        if design:
+            return {"success": True, "design": design}
+        else:
+            return {"success": False, "message": "Design not found"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to retrieve design: {str(e)}"}
+
+
+@app.post("/sfc/designs/{design_id}/save")
+async def save_design_data(design_id: int, request: dict):
+    """Save SFC design data (nodes and edges)"""
+    try:
+        await save_sfc_design_data(
+            design_id,
+            request.get("nodes", "[]"),
+            request.get("edges", "[]")
+        )
+        return {"success": True, "message": "Design saved successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to save design: {str(e)}"}
+
+
+@app.put("/sfc/designs/{design_id}")
+async def update_design_metadata(design_id: int, request: dict):
+    """Update SFC design metadata (name and description)"""
+    try:
+        await update_sfc_design(
+            design_id,
+            request.get("name", "Untitled Design"),
+            request.get("description", "")
+        )
+        return {"success": True, "message": "Design updated successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to update design: {str(e)}"}
+
+
+@app.delete("/sfc/designs/{design_id}")
+async def delete_design(design_id: int):
+    """Delete an SFC design"""
+    try:
+        await delete_sfc_design(design_id)
+        return {"success": True, "message": "Design deleted successfully"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to delete design: {str(e)}"}
 
 
 if __name__ == "__main__":

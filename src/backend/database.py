@@ -56,6 +56,33 @@ async def init_database():
         """
         )
 
+        # Create SFC designs table
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sfc_designs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
+        # Create SFC design data table (stores nodes and edges as JSON)
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sfc_design_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                design_id INTEGER NOT NULL,
+                nodes TEXT NOT NULL,
+                edges TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (design_id) REFERENCES sfc_designs (id) ON DELETE CASCADE
+            )
+        """
+        )
+
         await db.commit()
 
 
@@ -238,3 +265,137 @@ async def get_opc_node_autocomplete(search_term: str = ""):
             )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+# SFC Design CRUD operations
+
+async def create_sfc_design(name: str, description: str = ""):
+    """Create a new SFC design"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            """
+            INSERT INTO sfc_designs (name, description)
+            VALUES (?, ?)
+        """,
+            (name, description),
+        )
+        await db.commit()
+        return cursor.lastrowid
+
+
+async def get_all_sfc_designs():
+    """Get all SFC designs"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT id, name, description, created_at, updated_at
+            FROM sfc_designs
+            ORDER BY updated_at DESC
+        """
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def get_sfc_design(design_id: int):
+    """Get a specific SFC design with its data"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # Get design info
+        cursor = await db.execute(
+            """
+            SELECT id, name, description, created_at, updated_at
+            FROM sfc_designs
+            WHERE id = ?
+        """,
+            (design_id,),
+        )
+        design = await cursor.fetchone()
+        if not design:
+            return None
+
+        # Get design data
+        cursor = await db.execute(
+            """
+            SELECT nodes, edges
+            FROM sfc_design_data
+            WHERE design_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        """,
+            (design_id,),
+        )
+        data = await cursor.fetchone()
+
+        result = dict(design)
+        if data:
+            result["nodes"] = data[0]
+            result["edges"] = data[1]
+        else:
+            result["nodes"] = "[]"
+            result["edges"] = "[]"
+
+        return result
+
+
+async def save_sfc_design_data(design_id: int, nodes: str, edges: str):
+    """Save or update SFC design data (nodes and edges as JSON strings)"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Insert new design data
+        await db.execute(
+            """
+            INSERT INTO sfc_design_data (design_id, nodes, edges)
+            VALUES (?, ?, ?)
+        """,
+            (design_id, nodes, edges),
+        )
+        
+        # Update the design's updated_at timestamp
+        await db.execute(
+            """
+            UPDATE sfc_designs
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """,
+            (design_id,),
+        )
+        
+        await db.commit()
+
+
+async def update_sfc_design(design_id: int, name: str, description: str = ""):
+    """Update SFC design metadata"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            """
+            UPDATE sfc_designs
+            SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """,
+            (name, description, design_id),
+        )
+        await db.commit()
+
+
+async def delete_sfc_design(design_id: int):
+    """Delete an SFC design and its data"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            "DELETE FROM sfc_design_data WHERE design_id = ?", (design_id,)
+        )
+        await db.execute("DELETE FROM sfc_designs WHERE id = ?", (design_id,))
+        await db.commit()

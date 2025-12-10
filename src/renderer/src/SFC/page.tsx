@@ -191,6 +191,19 @@ function SFCEditor() {
     const [nextNodeId, setNextNodeId] = useState(3);
     const [copiedNode, setCopiedNode] = useState<any>(null);
 
+    // SFC Design state
+    const [designs, setDesigns] = useState<any[]>([]);
+    const [currentDesignId, setCurrentDesignId] = useState<number | null>(null);
+    const [showNewDesignDialog, setShowNewDesignDialog] = useState(false);
+    const [showBrowseDesignsDialog, setShowBrowseDesignsDialog] = useState(false);
+    const [newDesignName, setNewDesignName] = useState('');
+    const [newDesignDescription, setNewDesignDescription] = useState('');
+    const [showSaveSuccessDialog, setShowSaveSuccessDialog] = useState(false);
+    const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false);
+    const [designToDelete, setDesignToDelete] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [showErrorDialog, setShowErrorDialog] = useState(false);
+
     // Set Value modal state
     const [showSetValueModal, setShowSetValueModal] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -270,6 +283,156 @@ function SFCEditor() {
             endValue: '',
             time: '',
         });
+    };
+
+    // Load all designs from backend
+    const loadDesigns = async () => {
+        try {
+            const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT;
+            const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs`);
+            const data = await response.json();
+            if (data.success) {
+                setDesigns(data.designs);
+            }
+        } catch (error) {
+            console.error('Failed to load designs:', error);
+        }
+    };
+
+    // Load a specific design
+    const loadDesign = async (designId: number) => {
+        try {
+            const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT;
+            const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${designId}`);
+            const data = await response.json();
+            if (data.success && data.design) {
+                const design = data.design;
+                setCurrentDesignId(designId);
+                
+                // Parse nodes and edges from JSON strings
+                const loadedNodes = JSON.parse(design.nodes || '[]');
+                const loadedEdges = JSON.parse(design.edges || '[]');
+                
+                setNodes(loadedNodes.length > 0 ? loadedNodes : initialNodes);
+                setEdges(loadedEdges.length > 0 ? loadedEdges : initialEdges);
+                
+                // Update nextNodeId based on loaded nodes
+                if (loadedNodes.length > 0) {
+                    const maxId = Math.max(...loadedNodes.map((n: any) => parseInt(n.id.replace('n', '')) || 0));
+                    setNextNodeId(maxId + 1);
+                }
+                setShowBrowseDesignsDialog(false);
+            }
+        } catch (error) {
+            console.error('Failed to load design:', error);
+        }
+    };
+
+    // Save current design
+    const saveCurrentDesign = async () => {
+        if (!currentDesignId) {
+            setErrorMessage('Please create or select a design first');
+            setShowErrorDialog(true);
+            return;
+        }
+
+        try {
+            const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT;
+            const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nodes: JSON.stringify(nodes),
+                    edges: JSON.stringify(edges),
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setShowSaveSuccessDialog(true);
+                await loadDesigns(); // Refresh design list
+            } else {
+                setErrorMessage('Failed to save design: ' + data.message);
+                setShowErrorDialog(true);
+            }
+        } catch (error) {
+            console.error('Failed to save design:', error);
+            setErrorMessage('Failed to save design');
+            setShowErrorDialog(true);
+        }
+    };
+
+    // Create new design
+    const createNewDesign = async () => {
+        if (!newDesignName.trim()) {
+            setErrorMessage('Please enter a design name');
+            setShowErrorDialog(true);
+            return;
+        }
+
+        try {
+            const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT;
+            const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newDesignName,
+                    description: newDesignDescription,
+                }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setShowNewDesignDialog(false);
+                setNewDesignName('');
+                setNewDesignDescription('');
+                await loadDesigns();
+                await loadDesign(data.design_id);
+            } else {
+                setErrorMessage('Failed to create design: ' + data.message);
+                setShowErrorDialog(true);
+            }
+        } catch (error) {
+            console.error('Failed to create design:', error);
+            setErrorMessage('Failed to create design');
+            setShowErrorDialog(true);
+        }
+    };
+
+    // Delete a design - show confirmation dialog
+    const deleteDesign = (designId: number) => {
+        setDesignToDelete(designId);
+        setShowDeleteConfirmDialog(true);
+    };
+
+    // Confirm and execute delete
+    const confirmDeleteDesign = async () => {
+        if (!designToDelete) return;
+
+        try {
+            const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT;
+            const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${designToDelete}`, {
+                method: 'DELETE',
+            });
+            const data = await response.json();
+            if (data.success) {
+                if (currentDesignId === designToDelete) {
+                    setCurrentDesignId(null);
+                    setNodes(initialNodes);
+                    setEdges(initialEdges);
+                }
+                setShowDeleteConfirmDialog(false);
+                setDesignToDelete(null);
+                await loadDesigns();
+            } else {
+                setShowDeleteConfirmDialog(false);
+                setErrorMessage('Failed to delete design: ' + data.message);
+                setShowErrorDialog(true);
+            }
+        } catch (error) {
+            console.error('Failed to delete design:', error);
+            setShowDeleteConfirmDialog(false);
+            setErrorMessage('Failed to delete design');
+            setShowErrorDialog(true);
+        }
     };
 
     const handleSetValueSubmit = () => {
@@ -375,8 +538,36 @@ function SFCEditor() {
         return () => window.removeEventListener('openSetValueModal', handleOpenModal);
     }, [nodes]);
 
+    // Load designs on mount
+    useEffect(() => {
+        loadDesigns();
+    }, []);
+
     return (
-        <div className="w-full h-full min-h-0 flex relative">
+        <div className="w-full h-full min-h-0 flex flex-col relative">
+            {/* Compact toolbar */}
+            <div className="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 px-4 py-2 flex items-center gap-3">
+                <Button onClick={() => setShowBrowseDesignsDialog(true)} size="sm" variant="outline">
+                    Open Design
+                </Button>
+                <Button onClick={() => setShowNewDesignDialog(true)} size="sm">
+                    New Design
+                </Button>
+                {currentDesignId && (
+                    <Button onClick={saveCurrentDesign} size="sm" variant="default">
+                        Save
+                    </Button>
+                )}
+                {currentDesignId && designs.find(d => d.id === currentDesignId) && (
+                    <div className="ml-auto flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {designs.find(d => d.id === currentDesignId)?.name}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex-1 min-h-0 flex relative">
             {/* Main canvas area */}
             <div className="flex-1 min-h-0" onContextMenu={handleContextMenu}>
                 <ReactFlow
@@ -554,6 +745,178 @@ function SFCEditor() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* New Design Dialog */}
+            <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Create New SFC Design</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="designName">Design Name</Label>
+                            <Input
+                                id="designName"
+                                placeholder="My SFC Design"
+                                value={newDesignName}
+                                onChange={(e) => setNewDesignName(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="designDescription">Description (optional)</Label>
+                            <Input
+                                id="designDescription"
+                                placeholder="Description of the design"
+                                value={newDesignDescription}
+                                onChange={(e) => setNewDesignDescription(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowNewDesignDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={createNewDesign}>
+                            Create
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Browse Designs Dialog */}
+            <Dialog open={showBrowseDesignsDialog} onOpenChange={setShowBrowseDesignsDialog}>
+                <DialogContent className="sm:max-w-[700px] max-h-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Open SFC Design</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        {designs.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                <p>No designs found. Create a new design to get started.</p>
+                            </div>
+                        ) : (
+                            <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 dark:bg-gray-900">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Updated</th>
+                                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white dark:bg-slate-950 divide-y divide-gray-200 dark:divide-gray-700">
+                                        {designs.map((design) => (
+                                            <tr key={design.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                                                <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    {design.name}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                    {design.description || '-'}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                                                    {new Date(design.updated_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-right space-x-2">
+                                                    <Button
+                                                        onClick={() => loadDesign(design.id)}
+                                                        size="sm"
+                                                        variant="default"
+                                                    >
+                                                        Open
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => deleteDesign(design.id)}
+                                                        size="sm"
+                                                        variant="destructive"
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowBrowseDesignsDialog(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Save Success Dialog */}
+            <Dialog open={showSaveSuccessDialog} onOpenChange={setShowSaveSuccessDialog}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Success</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Design saved successfully!
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setShowSaveSuccessDialog(false)}>
+                            OK
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Error Dialog */}
+            <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Error</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                            {errorMessage}
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setShowErrorDialog(false)}>
+                            OK
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Confirm Delete</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Are you sure you want to delete this design? This action cannot be undone.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button 
+                            variant="outline" 
+                            onClick={() => {
+                                setShowDeleteConfirmDialog(false);
+                                setDesignToDelete(null);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            variant="destructive"
+                            onClick={confirmDeleteDesign}
+                        >
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            </div>
         </div>
     );
 }
