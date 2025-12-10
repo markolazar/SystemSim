@@ -365,21 +365,21 @@ function SFCEditor() {
   const [isPaused, setIsPaused] = useState(false)
 
   // Set Value modal state
-    // Simulation control handlers
-    const handleStart = () => {
-      setIsRunning(true)
-      setIsPaused(false)
-      // TODO: Add backend call to start simulation
-    }
-    const handlePause = () => {
-      setIsPaused(true)
-      // TODO: Add backend call to pause simulation
-    }
-    const handleStop = () => {
-      setIsRunning(false)
-      setIsPaused(false)
-      // TODO: Add backend call to stop simulation
-    }
+  // Simulation control handlers
+  const handleStart = () => {
+    setIsRunning(true)
+    setIsPaused(false)
+    // TODO: Add backend call to start simulation
+  }
+  const handlePause = () => {
+    setIsPaused(true)
+    // TODO: Add backend call to pause simulation
+  }
+  const handleStop = () => {
+    setIsRunning(false)
+    setIsPaused(false)
+    // TODO: Add backend call to stop simulation
+  }
   const [showSetValueModal, setShowSetValueModal] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [setValueForm, setSetValueForm] = useState({
@@ -1244,15 +1244,15 @@ function SFCEditor() {
           </DialogContent>
         </Dialog>
       </div>
-    {/* BottomBar for simulation control */}
-    <BottomBar
-      onStart={handleStart}
-      onPause={handlePause}
-      onStop={handleStop}
-      isRunning={isRunning}
-      isPaused={isPaused}
-    />
-  </div>
+      {/* BottomBar for simulation control */}
+      <BottomBar
+        onStart={handleStart}
+        onPause={handlePause}
+        onStop={handleStop}
+        isRunning={isRunning}
+        isPaused={isPaused}
+      />
+    </div>
   )
 }
 
