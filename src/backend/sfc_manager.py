@@ -60,7 +60,9 @@ class SFCExecutionManager:
         if design_id in self.active_executions:
             self.active_executions[design_id]["task"] = None
 
-    def update_node_status(self, design_id, node_id, status, error=None, elapsed_time=None):
+    def update_node_status(
+        self, design_id, node_id, status, error=None, elapsed_time=None
+    ):
         """Update the status of a node in the execution"""
         if design_id not in self.active_executions:
             self.active_executions[design_id] = {
@@ -151,7 +153,7 @@ async def execute_sfc(
         """Execute a single setvalue node"""
         node = node_map[node_id]
         node_start_time = time.time()
-        
+
         await sfc_manager.broadcast(
             design_id, {"node_id": node_id, "status": "running"}
         )
@@ -160,15 +162,15 @@ async def execute_sfc(
 
         # Create a background task to broadcast elapsed time updates
         stop_updates = False
+
         async def broadcast_elapsed_time():
             while not stop_updates:
                 elapsed = round(time.time() - node_start_time, 2)
-                await sfc_manager.broadcast(
-                    design_id, {"node_id": node_id, "status": "running", "elapsed_time": elapsed}
+                sfc_manager.update_node_status(
+                    design_id, node_id, "running", elapsed_time=elapsed
                 )
-                sfc_manager.update_node_status(design_id, node_id, "running", elapsed_time=elapsed)
-                await asyncio.sleep(0.1)  # Update every 100ms
-        
+                await asyncio.sleep(0.2)  # Update every 200ms (less overhead)
+
         update_task = asyncio.create_task(broadcast_elapsed_time())
 
         try:
@@ -197,19 +199,30 @@ async def execute_sfc(
 
             elapsed = round(time.time() - node_start_time, 2)
             await sfc_manager.broadcast(
-                design_id, {"node_id": node_id, "status": "finished", "elapsed_time": elapsed}
+                design_id,
+                {"node_id": node_id, "status": "finished", "elapsed_time": elapsed},
             )
-            sfc_manager.update_node_status(design_id, node_id, "finished", elapsed_time=elapsed)
+            sfc_manager.update_node_status(
+                design_id, node_id, "finished", elapsed_time=elapsed
+            )
 
         except Exception as e:
             stop_updates = True
             await update_task
-            
+
             elapsed = round(time.time() - node_start_time, 2)
             await sfc_manager.broadcast(
-                design_id, {"node_id": node_id, "status": "error", "error": str(e), "elapsed_time": elapsed}
+                design_id,
+                {
+                    "node_id": node_id,
+                    "status": "error",
+                    "error": str(e),
+                    "elapsed_time": elapsed,
+                },
             )
-            sfc_manager.update_node_status(design_id, node_id, "error", str(e), elapsed_time=elapsed)
+            sfc_manager.update_node_status(
+                design_id, node_id, "error", str(e), elapsed_time=elapsed
+            )
             await asyncio.sleep(
                 float(node["data"].get("setValueConfig", {}).get("time", 1))
             )
@@ -308,9 +321,8 @@ async def _write_to_opc_node(
             start = value_type(start_value) if start_value else 0
             end = value_type(end_value) if end_value else 0
 
-            # Calculate sleep time per step to match total duration
-            target_time_per_step = duration / steps
-            start_time = time.time()
+            # Track overall timing to compensate for accumulated overhead
+            overall_start = time.time()
 
             for i in range(steps):
                 step_start = time.time()
@@ -321,9 +333,10 @@ async def _write_to_opc_node(
                 dv = ua.DataValue(ua.Variant(typed_value, variant_type))
                 node_obj.set_value(dv)
 
-                # Calculate how long the write took and adjust sleep time
-                elapsed = time.time() - step_start
-                sleep_time = max(0, target_time_per_step - elapsed)
+                # Calculate target time for this step and adjust sleep
+                target_elapsed = (i + 1) * (duration / steps)
+                actual_elapsed = time.time() - overall_start
+                sleep_time = max(0, target_elapsed - actual_elapsed)
                 await asyncio.sleep(sleep_time)
         except Exception as e:
             # If conversion or write fails, try setting start value directly

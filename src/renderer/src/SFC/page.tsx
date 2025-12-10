@@ -172,7 +172,7 @@ const SetValueNode = ({ data, selected }: any) => {
   // Show start/end value and time if available
   const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time;
   const elapsedTime = (data as any).elapsedTime;
-  
+
   // Debug logging
   if (elapsedTime !== undefined) {
     console.log('Node has elapsedTime:', elapsedTime, 'for node:', data.nodeId);
@@ -356,6 +356,7 @@ function SFCEditor() {
   const [nextNodeId, setNextNodeId] = useState(4)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [copiedNode, setCopiedNode] = useState<any>(null)
+  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 })
 
   // SFC Design state
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -383,6 +384,10 @@ function SFCEditor() {
   // Simulation control handlers
   const handleStart = async () => {
     if (!currentDesignId) return;
+
+    // Auto-save before starting execution
+    await saveCurrentDesign();
+
     setIsRunning(true)
     setIsPaused(false)
     // Do not reset nodeStatus, keep previous results until next run
@@ -617,6 +622,17 @@ function SFCEditor() {
         setNodes(loadedNodes.length > 0 ? loadedNodes : initialNodes)
         setEdges(loadedEdges.length > 0 ? loadedEdges : initialEdges)
 
+        // Load viewport if saved
+        if (design.viewport) {
+          try {
+            const savedViewport = JSON.parse(design.viewport)
+            setViewport(savedViewport)
+            reactFlowInstance.setViewport(savedViewport)
+          } catch (e) {
+            console.error('Failed to parse viewport:', e)
+          }
+        }
+
         // Update nextNodeId based on loaded nodes
         if (loadedNodes.length > 0) {
           const maxId = Math.max(
@@ -646,6 +662,8 @@ function SFCEditor() {
 
     try {
       const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+      // Get current viewport
+      const currentViewport = reactFlowInstance.getViewport()
       const response = await fetch(
         `http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/save`,
         {
@@ -653,7 +671,8 @@ function SFCEditor() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             nodes: JSON.stringify(nodes),
-            edges: JSON.stringify(edges)
+            edges: JSON.stringify(edges),
+            viewport: JSON.stringify(currentViewport)
           })
         }
       )
@@ -932,6 +951,15 @@ function SFCEditor() {
     return node.data?.color || '#8b5cf6'
   }
 
+  // Color mapping for edge status based on source node
+  const getEdgeColor = (edge: any) => {
+    const sourceStatus = nodeStatus[edge.source]?.status
+    if (sourceStatus === 'running') return '#fde047' // yellow - source is running
+    if (sourceStatus === 'finished') return '#22c55e' // green - source is finished
+    if (sourceStatus === 'error') return '#ef4444' // red - source had error
+    return '#94a3b8' // default gray
+  }
+
   // Patch node colors for execution status
   const nodesWithStatus = nodes.map((node) => {
     if (node.type === 'setvalue') {
@@ -945,6 +973,16 @@ function SFCEditor() {
       }
     }
     return node
+  })
+
+  // Patch edge colors for execution status
+  const edgesWithStatus = edges.map((edge) => {
+    const color = getEdgeColor(edge)
+    return {
+      ...edge,
+      style: { strokeWidth: 2, stroke: color },
+      animated: nodeStatus[edge.source]?.status === 'running'
+    }
   })
 
   return (
@@ -984,7 +1022,7 @@ function SFCEditor() {
         >
           <ReactFlow
             nodes={nodesWithStatus}
-            edges={edges}
+            edges={edgesWithStatus}
             nodeTypes={customNodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -993,7 +1031,8 @@ function SFCEditor() {
             onDragOver={onDragOver}
             onNodeContextMenu={onNodeContextMenu}
             onEdgeContextMenu={onEdgeContextMenu}
-            fitView
+            onMove={(_, newViewport) => setViewport(newViewport)}
+            defaultViewport={viewport}
             defaultEdgeOptions={{
               animated: true,
               style: { strokeWidth: 2, stroke: '#94a3b8' },

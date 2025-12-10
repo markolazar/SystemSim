@@ -110,7 +110,10 @@ def setup_sfc_routes(app, sfc_manager: SFCExecutionManager):
         """Save SFC design data (nodes and edges)"""
         try:
             await save_sfc_design_data(
-                design_id, request.get("nodes", "[]"), request.get("edges", "[]")
+                design_id,
+                request.get("nodes", "[]"),
+                request.get("edges", "[]"),
+                request.get("viewport"),
             )
             return {"success": True, "message": "Design saved successfully"}
         except Exception as e:

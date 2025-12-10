@@ -105,6 +105,20 @@ async def migrate_database():
             except Exception as e:
                 print(f"Migration error: {e}")
 
+        # Check if viewport column exists in sfc_design_data table
+        cursor = await db.execute("PRAGMA table_info(sfc_design_data)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        # Add viewport column if it doesn't exist
+        if "viewport" not in column_names:
+            try:
+                await db.execute("ALTER TABLE sfc_design_data ADD COLUMN viewport TEXT")
+                await db.commit()
+                print("Added viewport column to sfc_design_data table")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
 
 async def save_opc_config(url: str, prefix: str):
     """Save or update OPC server configuration"""
@@ -326,7 +340,7 @@ async def get_sfc_design(design_id: int):
         # Get design data
         cursor = await db.execute(
             """
-            SELECT nodes, edges
+            SELECT nodes, edges, viewport
             FROM sfc_design_data
             WHERE design_id = ?
             ORDER BY id DESC
@@ -340,14 +354,18 @@ async def get_sfc_design(design_id: int):
         if data:
             result["nodes"] = data[0]
             result["edges"] = data[1]
+            result["viewport"] = data[2] if len(data) > 2 else None
         else:
             result["nodes"] = "[]"
             result["edges"] = "[]"
+            result["viewport"] = None
 
         return result
 
 
-async def save_sfc_design_data(design_id: int, nodes: str, edges: str):
+async def save_sfc_design_data(
+    design_id: int, nodes: str, edges: str, viewport: str = None
+):
     """Save or update SFC design data (nodes and edges as JSON strings)"""
     db_path = get_db_path()
 
@@ -355,10 +373,10 @@ async def save_sfc_design_data(design_id: int, nodes: str, edges: str):
         # Insert new design data
         await db.execute(
             """
-            INSERT INTO sfc_design_data (design_id, nodes, edges)
-            VALUES (?, ?, ?)
+            INSERT INTO sfc_design_data (design_id, nodes, edges, viewport)
+            VALUES (?, ?, ?, ?)
         """,
-            (design_id, nodes, edges),
+            (design_id, nodes, edges, viewport),
         )
 
         # Update the design's updated_at timestamp
