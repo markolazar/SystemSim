@@ -21,7 +21,7 @@ export default function Page() {
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset className="flex flex-col h-screen">
-                <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b select-none">
                     <div className="flex items-center gap-2 px-3">
                         <SidebarTrigger />
                         <Separator orientation="vertical" className="mr-2 h-4" />

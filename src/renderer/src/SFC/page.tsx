@@ -97,7 +97,7 @@ const StartNode = ({ data, selected }: any) => (
     }}
   >
     {data.label}
-    <Handle type="source" position={Position.Right} style={{ background: data.color }} />
+    <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
   </div>
 )
 
@@ -143,12 +143,12 @@ const ConditionNode = ({ data, selected }: any) => (
     <Handle
       type="target"
       position={Position.Left}
-      style={{ background: data.color, left: '-2px' }}
+      style={{ background: data.color, left: '-2px', width: '20px', height: '20px' }}
     />
     <Handle
       type="source"
       position={Position.Right}
-      style={{ background: data.color, right: '-2px' }}
+      style={{ background: data.color, right: '-2px', width: '20px', height: '20px' }}
     />
   </div>
 )
@@ -187,9 +187,9 @@ const SetValueNode = ({ data, selected }: any) => {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+      <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
       {displayText}
-      <Handle type="source" position={Position.Right} style={{ background: data.color }} />
+      <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
     </div>
   )
 }
@@ -216,9 +216,9 @@ const WaitNode = ({ data, selected }: any) => (
       padding: '8px'
     }}
   >
-    <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+    <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
     {data.label}
-    <Handle type="source" position={Position.Right} style={{ background: data.color }} />
+    <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
   </div>
 )
 
@@ -244,7 +244,7 @@ const EndNode = ({ data, selected }: any) => (
       padding: '8px'
     }}
   >
-    <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+    <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
     {data.label}
   </div>
 )
@@ -308,6 +308,11 @@ function SFCEditor() {
     y: number
     nodeId: string
   } | null>(null)
+  const [edgeContextMenu, setEdgeContextMenu] = useState<{
+    x: number
+    y: number
+    edgeId: string
+  } | null>(null)
   const [nextNodeId, setNextNodeId] = useState(4)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [copiedNode, setCopiedNode] = useState<any>(null)
@@ -363,6 +368,13 @@ function SFCEditor() {
     setContextMenu(null)
   }, [])
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: any) => {
+    event.preventDefault()
+    setEdgeContextMenu({ x: event.clientX, y: event.clientY, edgeId: edge.id })
+    setContextMenu(null)
+  }, [])
+
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const deleteNode = (nodeId: string) => {
     const node = nodes.find((n) => n.id === nodeId)
@@ -373,6 +385,12 @@ function SFCEditor() {
     setNodes((nds) => nds.filter((node) => node.id !== nodeId))
     setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId))
     setNodeContextMenu(null)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const deleteEdge = (edgeId: string) => {
+    setEdges((eds) => eds.filter((edge) => edge.id !== edgeId))
+    setEdgeContextMenu(null)
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -769,7 +787,7 @@ function SFCEditor() {
   }, [currentDesignId, nodes, edges, copiedNode, saveCurrentDesign, copyNode, pasteNode])
 
   return (
-    <div className="w-full h-full min-h-0 flex flex-col relative">
+    <div className="w-full h-full min-h-0 flex flex-col relative select-none">
       {/* Compact toolbar */}
       <div className="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 px-4 py-2 flex items-center gap-3">
         <Button onClick={() => setShowBrowseDesignsDialog(true)} size="sm" variant="outline">
@@ -794,7 +812,15 @@ function SFCEditor() {
 
       <div className="flex-1 min-h-0 flex relative">
         {/* Main canvas area */}
-        <div className="flex-1 min-h-0" onContextMenu={handleContextMenu}>
+        <div 
+          className="flex-1 min-h-0" 
+          onContextMenu={handleContextMenu}
+          onClick={() => {
+            setContextMenu(null)
+            setNodeContextMenu(null)
+            setEdgeContextMenu(null)
+          }}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -805,6 +831,7 @@ function SFCEditor() {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeContextMenu={onNodeContextMenu}
+            onEdgeContextMenu={onEdgeContextMenu}
             fitView
             defaultEdgeOptions={{
               animated: true,
@@ -905,6 +932,19 @@ function SFCEditor() {
                 </>
               )
             })()}
+          </div>
+        )}
+        {edgeContextMenu && (
+          <div
+            className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+            style={{ top: `${edgeContextMenu.y}px`, left: `${edgeContextMenu.x}px` }}
+          >
+            <button
+              onClick={() => deleteEdge(edgeContextMenu.edgeId)}
+              className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
+            >
+              Delete Connection
+            </button>
           </div>
         )}
         {/* Set Value Modal */}
