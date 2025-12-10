@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { OPCAutocomplete } from '@/components/opc-autocomplete';
 
 const nodeTypesConfig = [
     { type: 'start', label: 'Start', color: '#10b981', bgColor: '#d1fae5', description: 'Starting point of the flow', shape: 'circle' },
@@ -91,6 +92,9 @@ const SetValueNode = ({ data }: any) => {
         window.dispatchEvent(event);
     };
 
+    // Display OPC node if configured, otherwise show default label
+    const displayText = (data as any).setValueConfig?.opcNode || data.label;
+
     return (
         <div
             style={{
@@ -105,11 +109,13 @@ const SetValueNode = ({ data }: any) => {
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 borderRadius: '4px',
                 cursor: 'pointer',
+                wordWrap: 'break-word',
+                wordBreak: 'break-word',
             }}
             onDoubleClick={handleDoubleClick}
         >
             <Handle type="target" position={Position.Left} style={{ background: data.color }} />
-            {data.label}
+            {displayText}
             <Handle type="source" position={Position.Right} style={{ background: data.color }} />
         </div>
     );
@@ -415,11 +421,11 @@ function SFCEditor() {
                         {/* OPC Node */}
                         <div className="space-y-2">
                             <Label htmlFor="opcNode">OPC Node</Label>
-                            <Input
+                            <OPCAutocomplete
                                 id="opcNode"
-                                placeholder="e.g., ns=2;s=Variable1"
                                 value={setValueForm.opcNode}
-                                onChange={(e) => setSetValueForm({ ...setValueForm, opcNode: e.target.value })}
+                                onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
+                                placeholder="e.g., ns=2;s=Variable1"
                             />
                         </div>
 

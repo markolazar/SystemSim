@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import (
     init_database,
+    migrate_database,
     save_opc_config,
     get_opc_config,
     save_opc_nodes,
     get_opc_nodes,
     save_selected_nodes,
     get_selected_nodes,
+    get_opc_node_autocomplete,
 )
 from opc_handler import (
     OPCTestRequest,
@@ -66,6 +68,7 @@ app.add_middleware(
 async def startup_event():
     """Initialize database on startup"""
     await init_database()
+    await migrate_database()
 
 
 @app.get("/data")
@@ -162,6 +165,16 @@ async def get_saved_selected_nodes():
             "success": False,
             "message": f"Failed to retrieve selected nodes: {str(e)}",
         }
+
+
+@app.get("/opc/autocomplete")
+async def opc_node_autocomplete(search: str = ""):
+    """Get OPC nodes for autocomplete, filtered by search term"""
+    try:
+        nodes = await get_opc_node_autocomplete(search)
+        return {"success": True, "nodes": nodes}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to retrieve autocomplete nodes: {str(e)}"}
 
 
 if __name__ == "__main__":

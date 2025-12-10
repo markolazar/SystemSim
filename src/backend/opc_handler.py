@@ -25,7 +25,46 @@ class OPCChildrenRequest(BaseModel):
     prefix: str
 
 
-def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0):
+def generate_short_node_id(node_id: str, prefix: str = "") -> str:
+    """
+    Generate a short node ID by removing the prefix from the full node ID.
+    Examples: 
+        node_id: ns=2;s=MyPrefix.dbMotors.Variable1, prefix: ns=2;s=MyPrefix -> dbMotors.Variable1
+        node_id: ns=2;s=dbAnalogSensors.EI_1000.ManValueEgu, prefix: ns=2;s= -> dbAnalogSensors.EI_1000.ManValueEgu
+    
+    Args:
+        node_id: Full OPC node ID
+        prefix: OPC prefix to remove from the node_id
+        
+    Returns:
+        Short node ID string with prefix removed
+    """
+    if not prefix:
+        # If no prefix, just extract value after ns=X;s= or similar patterns
+        try:
+            if ";" in node_id and "=" in node_id:
+                parts = node_id.split(";")
+                if len(parts) >= 2:
+                    value_part = parts[-1]
+                    if "=" in value_part:
+                        return value_part.split("=", 1)[1]
+                    return value_part
+        except:
+            pass
+        return node_id
+    
+    # Remove the prefix and the following dot
+    if prefix in node_id:
+        short_id = node_id.replace(prefix + '.', '')
+        if short_id != node_id:  # Successfully removed prefix with dot
+            return short_id
+        # Try without dot (in case prefix is at the end)
+        return node_id.replace(prefix, '')
+    
+    return node_id
+
+
+def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0, prefix=""):
     """
     Recursively discover all nodes in the OPC server
 
@@ -34,6 +73,7 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0)
         parent_id: Parent node ID
         max_depth: Maximum depth to traverse (prevents infinite loops)
         current_depth: Current recursion depth
+        prefix: OPC prefix for generating short node IDs
 
     Returns:
         List of discovered nodes
@@ -61,12 +101,14 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0)
 
         # Add current node (exclude if contains "spare" case-insensitive)
         if "spare" not in node_id.lower() and "spare" not in browse_name.lower():
+            shortnodeid = generate_short_node_id(node_id, prefix)
             node_dict = {
                 "node_id": node_id,
                 "browse_name": browse_name,
                 "parent_id": parent_id,
                 "data_type": data_type,
                 "value_rank": value_rank,
+                "shortnodeid": shortnodeid,
             }
             nodes.append(node_dict)
 
@@ -79,6 +121,7 @@ def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0)
                     parent_id=node_id,
                     max_depth=max_depth,
                     current_depth=current_depth + 1,
+                    prefix=prefix,
                 )
                 nodes.extend(child_nodes)
         except Exception as e:
@@ -208,7 +251,7 @@ def discover_nodes(url: str, prefix: str, selected_nodes: list[str] | None = Non
             try:
                 node = client.get_node(node_id)
                 print(f"Starting discovery from node: {node_id}")
-                discovered_nodes.extend(discover_nodes_recursive(node))
+                discovered_nodes.extend(discover_nodes_recursive(node, prefix=prefix))
             except Exception as e:
                 print(f"Could not start discovery at {node_id}: {e}")
 

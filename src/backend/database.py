@@ -39,6 +39,7 @@ async def init_database():
                 parent_id TEXT,
                 data_type TEXT,
                 value_rank INTEGER,
+                shortnodeid TEXT,
                 discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """
@@ -56,6 +57,30 @@ async def init_database():
         )
 
         await db.commit()
+
+
+async def migrate_database():
+    """Migrate existing database schema to latest version"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Check if shortnodeid column exists in opc_nodes table
+        cursor = await db.execute(
+            "PRAGMA table_info(opc_nodes)"
+        )
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        # Add shortnodeid column if it doesn't exist
+        if 'shortnodeid' not in column_names:
+            try:
+                await db.execute(
+                    "ALTER TABLE opc_nodes ADD COLUMN shortnodeid TEXT"
+                )
+                await db.commit()
+                print("Added shortnodeid column to opc_nodes table")
+            except Exception as e:
+                print(f"Migration error: {e}")
 
 
 async def save_opc_config(url: str, prefix: str):
@@ -125,8 +150,8 @@ async def save_opc_nodes(nodes: list):
                 await db.execute(
                     """
                     INSERT OR IGNORE INTO opc_nodes 
-                    (node_id, browse_name, parent_id, data_type, value_rank)
-                    VALUES (?, ?, ?, ?, ?)
+                    (node_id, browse_name, parent_id, data_type, value_rank, shortnodeid)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 """,
                     (
                         node.get("node_id"),
@@ -134,6 +159,7 @@ async def save_opc_nodes(nodes: list):
                         node.get("parent_id"),
                         node.get("data_type"),
                         node.get("value_rank"),
+                        node.get("shortnodeid"),
                     ),
                 )
             except Exception as e:
@@ -150,7 +176,7 @@ async def get_opc_nodes():
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """
-            SELECT node_id, browse_name, parent_id, data_type, value_rank, discovered_at
+            SELECT node_id, browse_name, parent_id, data_type, value_rank, shortnodeid, discovered_at
             FROM opc_nodes
             ORDER BY node_id
         """
@@ -185,3 +211,34 @@ async def get_selected_nodes():
         cursor = await db.execute("SELECT node_id FROM selected_nodes ORDER BY node_id")
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
+
+
+async def get_opc_node_autocomplete(search_term: str = ""):
+    """Get OPC nodes for autocomplete, filtered by search term"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        if search_term:
+            cursor = await db.execute(
+                """
+                SELECT shortnodeid, browse_name, node_id
+                FROM opc_nodes
+                WHERE shortnodeid LIKE ?
+                ORDER BY shortnodeid
+                LIMIT 50
+            """,
+                (f"%{search_term}%",),
+            )
+        else:
+            cursor = await db.execute(
+                """
+                SELECT shortnodeid, browse_name, node_id
+                FROM opc_nodes
+                WHERE shortnodeid IS NOT NULL AND shortnodeid != ''
+                ORDER BY shortnodeid
+                LIMIT 50
+            """
+            )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
