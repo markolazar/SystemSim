@@ -171,6 +171,12 @@ const SetValueNode = ({ data, selected }: any) => {
 
   // Show start/end value and time if available
   const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time;
+  const elapsedTime = (data as any).elapsedTime;
+  
+  // Debug logging
+  if (elapsedTime !== undefined) {
+    console.log('Node has elapsedTime:', elapsedTime, 'for node:', data.nodeId);
+  }
 
   return (
     <div
@@ -215,6 +221,11 @@ const SetValueNode = ({ data, selected }: any) => {
             {setValueConfig.time !== undefined && setValueConfig.time !== '' && (
               <span>Time: <b>{setValueConfig.time}s</b></span>
             )}
+          </div>
+        )}
+        {elapsedTime !== undefined && (
+          <div style={{ fontSize: 11, color: '#059669', marginTop: 4, fontWeight: 700 }}>
+            Elapsed: {elapsedTime}s
           </div>
         )}
       </div>
@@ -366,7 +377,7 @@ function SFCEditor() {
 
   // Set Value modal state
   // Node execution status state
-  const [nodeStatus, setNodeStatus] = useState<{ [nodeId: string]: 'idle' | 'running' | 'finished' | 'error' }>({})
+  const [nodeStatus, setNodeStatus] = useState<{ [nodeId: string]: { status: 'idle' | 'running' | 'finished' | 'error', elapsedTime?: number } }>({})
   const pollingIntervalRef = useState<{ id: NodeJS.Timeout | null }>({ id: null })[0]
 
   // Simulation control handlers
@@ -407,7 +418,10 @@ function SFCEditor() {
           Object.entries(statusData.status.nodes).forEach(([nodeId, nodeStatus]: [string, any]) => {
             setNodeStatus(prev => ({
               ...prev,
-              [nodeId]: nodeStatus.status
+              [nodeId]: {
+                status: nodeStatus.status,
+                elapsedTime: nodeStatus.elapsed_time
+              }
             }))
             if (nodeStatus.status === 'error' && nodeStatus.error) {
               setErrorMessage(`Node ${nodeId} error: ${nodeStatus.error}`)
@@ -911,7 +925,7 @@ function SFCEditor() {
 
   // Color mapping for node status
   const getNodeColor = (node: any) => {
-    const status = nodeStatus[node.id]
+    const status = nodeStatus[node.id]?.status
     if (status === 'running') return '#fde047' // yellow
     if (status === 'finished') return '#22c55e' // green
     if (status === 'error') return '#ef4444' // red
@@ -925,7 +939,8 @@ function SFCEditor() {
         ...node,
         data: {
           ...node.data,
-          color: getNodeColor(node)
+          color: getNodeColor(node),
+          elapsedTime: nodeStatus[node.id]?.elapsedTime
         }
       }
     }

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from fastapi import WebSocket, WebSocketDisconnect
 from opcua import Client, ua
 
@@ -59,7 +60,7 @@ class SFCExecutionManager:
         if design_id in self.active_executions:
             self.active_executions[design_id]["task"] = None
 
-    def update_node_status(self, design_id, node_id, status, error=None):
+    def update_node_status(self, design_id, node_id, status, error=None, elapsed_time=None):
         """Update the status of a node in the execution"""
         if design_id not in self.active_executions:
             self.active_executions[design_id] = {
@@ -76,6 +77,10 @@ class SFCExecutionManager:
             self.active_executions[design_id]["status"]["nodes"][node_id][
                 "error"
             ] = error
+        if elapsed_time is not None:
+            self.active_executions[design_id]["status"]["nodes"][node_id][
+                "elapsed_time"
+            ] = elapsed_time
 
     def get_status(self, design_id):
         """Get the current execution status for a design"""
@@ -145,11 +150,26 @@ async def execute_sfc(
     async def execute_node(node_id):
         """Execute a single setvalue node"""
         node = node_map[node_id]
+        node_start_time = time.time()
+        
         await sfc_manager.broadcast(
             design_id, {"node_id": node_id, "status": "running"}
         )
         sfc_manager.update_node_status(design_id, node_id, "running")
         running.add(node_id)
+
+        # Create a background task to broadcast elapsed time updates
+        stop_updates = False
+        async def broadcast_elapsed_time():
+            while not stop_updates:
+                elapsed = round(time.time() - node_start_time, 2)
+                await sfc_manager.broadcast(
+                    design_id, {"node_id": node_id, "status": "running", "elapsed_time": elapsed}
+                )
+                sfc_manager.update_node_status(design_id, node_id, "running", elapsed_time=elapsed)
+                await asyncio.sleep(0.1)  # Update every 100ms
+        
+        update_task = asyncio.create_task(broadcast_elapsed_time())
 
         try:
             setValueConfig = node["data"].get("setValueConfig", {})
@@ -167,20 +187,29 @@ async def execute_sfc(
                     start_value,
                     end_value,
                     steps,
+                    duration,
                 )
             else:
                 await asyncio.sleep(duration)
 
+            stop_updates = True
+            await update_task
+
+            elapsed = round(time.time() - node_start_time, 2)
             await sfc_manager.broadcast(
-                design_id, {"node_id": node_id, "status": "finished"}
+                design_id, {"node_id": node_id, "status": "finished", "elapsed_time": elapsed}
             )
-            sfc_manager.update_node_status(design_id, node_id, "finished")
+            sfc_manager.update_node_status(design_id, node_id, "finished", elapsed_time=elapsed)
 
         except Exception as e:
+            stop_updates = True
+            await update_task
+            
+            elapsed = round(time.time() - node_start_time, 2)
             await sfc_manager.broadcast(
-                design_id, {"node_id": node_id, "status": "error", "error": str(e)}
+                design_id, {"node_id": node_id, "status": "error", "error": str(e), "elapsed_time": elapsed}
             )
-            sfc_manager.update_node_status(design_id, node_id, "error", str(e))
+            sfc_manager.update_node_status(design_id, node_id, "error", str(e), elapsed_time=elapsed)
             await asyncio.sleep(
                 float(node["data"].get("setValueConfig", {}).get("time", 1))
             )
@@ -239,6 +268,7 @@ async def _write_to_opc_node(
     start_value: str,
     end_value: str,
     steps: int,
+    duration: float,
 ):
     """
     Write values to an OPC node with interpolation.
@@ -250,6 +280,7 @@ async def _write_to_opc_node(
         start_value: Starting value
         end_value: Ending value
         steps: Number of interpolation steps
+        duration: Total duration in seconds
     """
     client = Client(opc_url)
     try:
@@ -277,13 +308,23 @@ async def _write_to_opc_node(
             start = value_type(start_value) if start_value else 0
             end = value_type(end_value) if end_value else 0
 
+            # Calculate sleep time per step to match total duration
+            target_time_per_step = duration / steps
+            start_time = time.time()
+
             for i in range(steps):
+                step_start = time.time()
+
                 v = start + (end - start) * i / (steps - 1)
                 # Convert to correct type and create DataValue with appropriate variant
                 typed_value = value_type(v)
                 dv = ua.DataValue(ua.Variant(typed_value, variant_type))
                 node_obj.set_value(dv)
-                await asyncio.sleep(0.05)
+
+                # Calculate how long the write took and adjust sleep time
+                elapsed = time.time() - step_start
+                sleep_time = max(0, target_time_per_step - elapsed)
+                await asyncio.sleep(sleep_time)
         except Exception as e:
             # If conversion or write fails, try setting start value directly
             try:
