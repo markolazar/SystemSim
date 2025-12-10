@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { OPCAutocomplete } from '@/components/opc-autocomplete';
 
 const nodeTypesConfig = [
@@ -29,7 +30,7 @@ const nodeTypesConfig = [
 ];
 
 // Custom node components with different shapes
-const StartNode = ({ data }: any) => (
+const StartNode = ({ data, selected }: any) => (
     <div style={{
         width: '100px',
         height: '100px',
@@ -43,7 +44,7 @@ const StartNode = ({ data }: any) => (
         fontSize: '14px',
         color: '#1f2937',
         textAlign: 'center',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         padding: '8px',
     }}>
         {data.label}
@@ -51,7 +52,7 @@ const StartNode = ({ data }: any) => (
     </div>
 );
 
-const ConditionNode = ({ data }: any) => (
+const ConditionNode = ({ data, selected }: any) => (
     <div style={{
         position: 'relative',
         width: '110px',
@@ -64,7 +65,7 @@ const ConditionNode = ({ data }: any) => (
             transform: 'rotate(45deg)',
             border: `3px solid ${data.color}`,
             backgroundColor: data.bgColor,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         }} />
         <div style={{
             position: 'absolute',
@@ -86,7 +87,7 @@ const ConditionNode = ({ data }: any) => (
     </div>
 );
 
-const SetValueNode = ({ data }: any) => {
+const SetValueNode = ({ data, selected }: any) => {
     const handleDoubleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } });
@@ -107,7 +108,7 @@ const SetValueNode = ({ data }: any) => {
                 fontWeight: '600',
                 fontSize: '13px',
                 color: '#1f2937',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 wordWrap: 'break-word',
@@ -122,30 +123,7 @@ const SetValueNode = ({ data }: any) => {
     );
 };
 
-const WaitNode = ({ data }: any) => (
-    <div style={{
-        width: '100px',
-        height: '100px',
-        borderRadius: '50%',
-        border: `3px solid ${data.color}`,
-        backgroundColor: data.bgColor,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: '600',
-        fontSize: '14px',
-        color: '#1f2937',
-        textAlign: 'center',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        padding: '8px',
-    }}>
-        <Handle type="target" position={Position.Left} style={{ background: data.color }} />
-        {data.label}
-        <Handle type="source" position={Position.Right} style={{ background: data.color }} />
-    </div>
-);
-
-const EndNode = ({ data }: any) => (
+const WaitNode = ({ data, selected }: any) => (
     <div style={{
         width: '100px',
         height: '100px',
@@ -159,7 +137,30 @@ const EndNode = ({ data }: any) => (
         fontSize: '14px',
         color: '#1f2937',
         textAlign: 'center',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        padding: '8px',
+    }}>
+        <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+        {data.label}
+        <Handle type="source" position={Position.Right} style={{ background: data.color }} />
+    </div>
+);
+
+const EndNode = ({ data, selected }: any) => (
+    <div style={{
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        border: `3px solid ${data.color}`,
+        backgroundColor: data.bgColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: '700',
+        fontSize: '14px',
+        color: '#1f2937',
+        textAlign: 'center',
+        boxShadow: selected ? '0 0 0 3px rgba(59, 130, 246, 0.5)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         padding: '8px',
     }}>
         <Handle type="target" position={Position.Left} style={{ background: data.color }} />
@@ -190,6 +191,7 @@ function SFCEditor() {
     const [nodeContextMenu, setNodeContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
     const [nextNodeId, setNextNodeId] = useState(3);
     const [copiedNode, setCopiedNode] = useState<any>(null);
+    const [selectedNodeForCopy, setSelectedNodeForCopy] = useState<string | null>(null);
 
     // SFC Design state
     const [designs, setDesigns] = useState<any[]>([]);
@@ -249,23 +251,35 @@ function SFCEditor() {
         const node = nodes.find((n) => n.id === nodeId);
         if (node && node.type !== 'start' && node.type !== 'end') {
             setCopiedNode(node);
+            setSelectedNodeForCopy(nodeId);
         }
         setNodeContextMenu(null);
     };
 
-    const pasteNode = () => {
-        if (!copiedNode || !contextMenu) return;
+    const pasteNode = (position?: { x: number; y: number }) => {
+        if (!copiedNode) return;
 
-        const position = reactFlowInstance.screenToFlowPosition({
-            x: contextMenu.x,
-            y: contextMenu.y,
-        });
+        let pastePosition;
+        if (position) {
+            pastePosition = position;
+        } else if (contextMenu) {
+            pastePosition = reactFlowInstance.screenToFlowPosition({
+                x: contextMenu.x,
+                y: contextMenu.y,
+            });
+        } else {
+            // Paste at center of viewport when using keyboard shortcut
+            pastePosition = reactFlowInstance.screenToFlowPosition({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+            });
+        }
 
         const nodeId = `n${nextNodeId}`;
         const newNode = {
             ...copiedNode,
             id: nodeId,
-            position,
+            position: pastePosition,
             data: { ...copiedNode.data, nodeId },
         };
         setNodes([...nodes, newNode]);
@@ -350,6 +364,10 @@ function SFCEditor() {
             if (data.success) {
                 setShowSaveSuccessDialog(true);
                 await loadDesigns(); // Refresh design list
+                // Auto-dismiss after 3 seconds
+                setTimeout(() => {
+                    setShowSaveSuccessDialog(false);
+                }, 3000);
             } else {
                 setErrorMessage('Failed to save design: ' + data.message);
                 setShowErrorDialog(true);
@@ -543,6 +561,39 @@ function SFCEditor() {
         loadDesigns();
     }, []);
 
+    // Keyboard shortcut: Ctrl+S to save
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                if (currentDesignId) {
+                    saveCurrentDesign();
+                }
+            }
+            // Ctrl+C to copy selected node
+            if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+                const selectedNodes = nodes.filter((node: any) => node.selected);
+                if (selectedNodes.length === 1) {
+                    const node = selectedNodes[0];
+                    if (node.type !== 'start' && node.type !== 'end') {
+                        event.preventDefault();
+                        copyNode(node.id);
+                    }
+                }
+            }
+            // Ctrl+V to paste copied node
+            if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+                if (copiedNode) {
+                    event.preventDefault();
+                    pasteNode();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentDesignId, nodes, edges, copiedNode]);
+
     return (
         <div className="w-full h-full min-h-0 flex flex-col relative">
             {/* Compact toolbar */}
@@ -634,7 +685,7 @@ function SFCEditor() {
                         style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
                     >
                         <button
-                            onClick={pasteNode}
+                            onClick={() => pasteNode()}
                             className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
                         >
                             Paste Node
@@ -848,26 +899,31 @@ function SFCEditor() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Save Success Dialog */}
-                <Dialog open={showSaveSuccessDialog} onOpenChange={setShowSaveSuccessDialog}>
-                    <DialogContent className="sm:max-w-[400px]">
-                        <DialogHeader>
-                            <DialogTitle>Success</DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                Design saved successfully!
-                            </p>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={() => setShowSaveSuccessDialog(false)}>
-                                OK
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Error Dialog */}
+            {/* Save Success Alert */}
+            {showSaveSuccessDialog && (
+                <div className="fixed top-4 right-4 z-50 w-96 animate-in slide-in-from-top-5">
+                    <Alert variant="success">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                            stroke="currentColor"
+                            className="h-4 w-4"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                        </svg>
+                        <AlertTitle>Success</AlertTitle>
+                        <AlertDescription>
+                            Design saved successfully!
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            )}                {/* Error Dialog */}
                 <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
                     <DialogContent className="sm:max-w-[400px]">
                         <DialogHeader>
