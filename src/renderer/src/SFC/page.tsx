@@ -446,6 +446,15 @@ function SFCEditor() {
       pollingIntervalRef.id = null
     }
   }
+  const handleReset = () => {
+    setIsRunning(false)
+    setIsPaused(false)
+    setNodeStatus({})
+    if (pollingIntervalRef.id) {
+      clearInterval(pollingIntervalRef.id)
+      pollingIntervalRef.id = null
+    }
+  }
   const [showSetValueModal, setShowSetValueModal] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [setValueForm, setSetValueForm] = useState({
@@ -1338,6 +1347,7 @@ function SFCEditor() {
         onStart={handleStart}
         onPause={handlePause}
         onStop={handleStop}
+        onReset={handleReset}
         isRunning={isRunning}
         isPaused={isPaused}
       />

@@ -5,11 +5,12 @@ interface BottomBarProps {
     onStart: () => void;
     onPause: () => void;
     onStop: () => void;
+    onReset: () => void;
     isRunning: boolean;
     isPaused: boolean;
 }
 
-export const BottomBar: React.FC<BottomBarProps> = ({ onStart, onPause, onStop, isRunning, isPaused }) => {
+export const BottomBar: React.FC<BottomBarProps> = ({ onStart, onPause, onStop, onReset, isRunning, isPaused }) => {
     const [collapsed, setCollapsed] = useState(false);
 
     return (
@@ -50,6 +51,15 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onStart, onPause, onStop, 
                         size="sm"
                     >
                         Stop
+                    </Button>
+                    <Button
+                        onClick={onReset}
+                        disabled={isRunning}
+                        variant="outline"
+                        size="sm"
+                        className="ml-4"
+                    >
+                        Reset
                     </Button>
                 </div>
             )}
