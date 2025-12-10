@@ -25,6 +25,7 @@ const nodeTypesConfig = [
     { type: 'condition', label: 'Condition', color: '#f59e0b', bgColor: '#fef3c7', description: 'Decision or branching logic', shape: 'diamond' },
     { type: 'setvalue', label: 'Set Value', color: '#8b5cf6', bgColor: '#ede9fe', description: 'Assign or modify values', shape: 'rectangle' },
     { type: 'wait', label: 'Wait', color: '#06b6d4', bgColor: '#cffafe', description: 'Pause or delay execution', shape: 'circle' },
+    { type: 'end', label: 'End', color: '#ef4444', bgColor: '#fee2e2', description: 'End point of the flow', shape: 'circle' },
 ];
 
 // Custom node components with different shapes
@@ -144,11 +145,34 @@ const WaitNode = ({ data }: any) => (
     </div>
 );
 
+const EndNode = ({ data }: any) => (
+    <div style={{
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        border: `3px solid ${data.color}`,
+        backgroundColor: data.bgColor,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: '700',
+        fontSize: '14px',
+        color: '#1f2937',
+        textAlign: 'center',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        padding: '8px',
+    }}>
+        <Handle type="target" position={Position.Left} style={{ background: data.color }} />
+        {data.label}
+    </div>
+);
+
 const customNodeTypes = {
     start: StartNode,
     condition: ConditionNode,
     setvalue: SetValueNode,
     wait: WaitNode,
+    end: EndNode,
 };
 
 const initialNodes = [

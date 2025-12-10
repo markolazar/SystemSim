@@ -174,7 +174,10 @@ async def opc_node_autocomplete(search: str = ""):
         nodes = await get_opc_node_autocomplete(search)
         return {"success": True, "nodes": nodes}
     except Exception as e:
-        return {"success": False, "message": f"Failed to retrieve autocomplete nodes: {str(e)}"}
+        return {
+            "success": False,
+            "message": f"Failed to retrieve autocomplete nodes: {str(e)}",
+        }
 
 
 if __name__ == "__main__":

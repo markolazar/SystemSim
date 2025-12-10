@@ -28,14 +28,14 @@ class OPCChildrenRequest(BaseModel):
 def generate_short_node_id(node_id: str, prefix: str = "") -> str:
     """
     Generate a short node ID by removing the prefix from the full node ID.
-    Examples: 
+    Examples:
         node_id: ns=2;s=MyPrefix.dbMotors.Variable1, prefix: ns=2;s=MyPrefix -> dbMotors.Variable1
         node_id: ns=2;s=dbAnalogSensors.EI_1000.ManValueEgu, prefix: ns=2;s= -> dbAnalogSensors.EI_1000.ManValueEgu
-    
+
     Args:
         node_id: Full OPC node ID
         prefix: OPC prefix to remove from the node_id
-        
+
     Returns:
         Short node ID string with prefix removed
     """
@@ -52,19 +52,21 @@ def generate_short_node_id(node_id: str, prefix: str = "") -> str:
         except:
             pass
         return node_id
-    
+
     # Remove the prefix and the following dot
     if prefix in node_id:
-        short_id = node_id.replace(prefix + '.', '')
+        short_id = node_id.replace(prefix + ".", "")
         if short_id != node_id:  # Successfully removed prefix with dot
             return short_id
         # Try without dot (in case prefix is at the end)
-        return node_id.replace(prefix, '')
-    
+        return node_id.replace(prefix, "")
+
     return node_id
 
 
-def discover_nodes_recursive(node, parent_id=None, max_depth=5, current_depth=0, prefix=""):
+def discover_nodes_recursive(
+    node, parent_id=None, max_depth=5, current_depth=0, prefix=""
+):
     """
     Recursively discover all nodes in the OPC server
 

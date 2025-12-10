@@ -65,18 +65,14 @@ async def migrate_database():
 
     async with aiosqlite.connect(db_path) as db:
         # Check if shortnodeid column exists in opc_nodes table
-        cursor = await db.execute(
-            "PRAGMA table_info(opc_nodes)"
-        )
+        cursor = await db.execute("PRAGMA table_info(opc_nodes)")
         columns = await cursor.fetchall()
         column_names = [col[1] for col in columns]
 
         # Add shortnodeid column if it doesn't exist
-        if 'shortnodeid' not in column_names:
+        if "shortnodeid" not in column_names:
             try:
-                await db.execute(
-                    "ALTER TABLE opc_nodes ADD COLUMN shortnodeid TEXT"
-                )
+                await db.execute("ALTER TABLE opc_nodes ADD COLUMN shortnodeid TEXT")
                 await db.commit()
                 print("Added shortnodeid column to opc_nodes table")
             except Exception as e:
