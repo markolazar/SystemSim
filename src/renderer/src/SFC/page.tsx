@@ -18,6 +18,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { BottomBar } from '@/components/ui/bottom-bar'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -154,45 +155,73 @@ const ConditionNode = ({ data, selected }: any) => (
 )
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
+
 const SetValueNode = ({ data, selected }: any) => {
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } })
-    window.dispatchEvent(event)
-  }
+    e.stopPropagation();
+    const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } });
+    window.dispatchEvent(event);
+  };
 
   // Display OPC node if configured, otherwise show default label
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const displayText = (data as any).setValueConfig?.opcNode || data.label
+  const setValueConfig = (data as any).setValueConfig || {};
+  const displayText = setValueConfig.opcNode || data.label;
+
+  // Show start/end value and time if available
+  const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time;
 
   return (
     <div
       style={{
-        padding: '12px 18px',
+        padding: '14px 14px',
         border: `3px solid ${data.color}`,
         backgroundColor: data.bgColor,
-        minWidth: '110px',
-        textAlign: 'center',
-        fontWeight: '600',
-        fontSize: '13px',
+        minWidth: '140px',
+        maxWidth: '340px',
+        minHeight: '64px',
+        textAlign: 'left',
+        fontWeight: 600,
+        fontSize: 13,
         color: '#1f2937',
         boxShadow: selected
           ? '0 0 0 3px rgba(59, 130, 246, 0.5)'
           : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        borderRadius: '4px',
+        borderRadius: 6,
         cursor: 'pointer',
-        wordWrap: 'break-word',
-        wordBreak: 'break-word'
+        wordBreak: 'break-all',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: 8,
       }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
-      {displayText}
-      <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
+      <Handle type="target" position={Position.Left} style={{ background: data.color, width: 20, height: 20, alignSelf: 'center' }} />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ minHeight: 22, fontWeight: 700, color: '#4f46e5', wordBreak: 'break-word', whiteSpace: 'pre-line' }} title={displayText}>
+          {displayText}
+        </div>
+        {hasDetails && (
+          <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4, lineHeight: 1.3 }}>
+            {setValueConfig.type && <span style={{ marginRight: 8 }}>Type: <b>{setValueConfig.type}</b></span>}
+            {setValueConfig.startValue !== undefined && setValueConfig.startValue !== '' && (
+              <span style={{ marginRight: 8 }}>Start: <b>{setValueConfig.startValue}</b></span>
+            )}
+            {setValueConfig.endValue !== undefined && setValueConfig.endValue !== '' && (
+              <span style={{ marginRight: 8 }}>End: <b>{setValueConfig.endValue}</b></span>
+            )}
+            {setValueConfig.time !== undefined && setValueConfig.time !== '' && (
+              <span>Time: <b>{setValueConfig.time}s</b></span>
+            )}
+          </div>
+        )}
+      </div>
+      <Handle type="source" position={Position.Right} style={{ background: data.color, width: 20, height: 20, alignSelf: 'center' }} />
     </div>
-  )
-}
+  );
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const WaitNode = ({ data, selected }: any) => (
@@ -331,7 +360,26 @@ function SFCEditor() {
   const [errorMessage, setErrorMessage] = useState('')
   const [showErrorDialog, setShowErrorDialog] = useState(false)
 
+  // Simulation state
+  const [isRunning, setIsRunning] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+
   // Set Value modal state
+    // Simulation control handlers
+    const handleStart = () => {
+      setIsRunning(true)
+      setIsPaused(false)
+      // TODO: Add backend call to start simulation
+    }
+    const handlePause = () => {
+      setIsPaused(true)
+      // TODO: Add backend call to pause simulation
+    }
+    const handleStop = () => {
+      setIsRunning(false)
+      setIsPaused(false)
+      // TODO: Add backend call to stop simulation
+    }
   const [showSetValueModal, setShowSetValueModal] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [setValueForm, setSetValueForm] = useState({
@@ -1196,7 +1244,15 @@ function SFCEditor() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    {/* BottomBar for simulation control */}
+    <BottomBar
+      onStart={handleStart}
+      onPause={handlePause}
+      onStop={handleStop}
+      isRunning={isRunning}
+      isPaused={isPaused}
+    />
+  </div>
   )
 }
 
