@@ -365,20 +365,86 @@ function SFCEditor() {
   const [isPaused, setIsPaused] = useState(false)
 
   // Set Value modal state
+  // Node execution status state
+  const [nodeStatus, setNodeStatus] = useState<{ [nodeId: string]: 'idle' | 'running' | 'finished' | 'error' }>({})
+  const pollingIntervalRef = useState<{ id: NodeJS.Timeout | null }>({ id: null })[0]
+
   // Simulation control handlers
-  const handleStart = () => {
+  const handleStart = async () => {
+    if (!currentDesignId) return;
     setIsRunning(true)
     setIsPaused(false)
-    // TODO: Add backend call to start simulation
+    // Do not reset nodeStatus, keep previous results until next run
+
+    const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+
+    // Start backend execution
+    const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+
+    if (!response.ok) {
+      setErrorMessage('Failed to start SFC execution')
+      setShowErrorDialog(true)
+      setIsRunning(false)
+      return
+    }
+
+    // Poll for status updates
+    if (pollingIntervalRef.id) {
+      clearInterval(pollingIntervalRef.id)
+    }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/status`)
+        const statusData = await statusResponse.json()
+
+        if (statusData.status && statusData.status.nodes) {
+          // Update node statuses
+          Object.entries(statusData.status.nodes).forEach(([nodeId, nodeStatus]: [string, any]) => {
+            setNodeStatus(prev => ({
+              ...prev,
+              [nodeId]: nodeStatus.status
+            }))
+            if (nodeStatus.status === 'error' && nodeStatus.error) {
+              setErrorMessage(`Node ${nodeId} error: ${nodeStatus.error}`)
+              setShowErrorDialog(true)
+            }
+          })
+        }
+
+        // Check if all nodes are finished
+        const nodeStatuses = statusData.status?.nodes || {}
+        const allFinished = Object.values(nodeStatuses).every((status: any) => {
+          return status.status === 'finished' || status.status === 'error'
+        })
+
+        if (allFinished && Object.keys(nodeStatuses).length > 0) {
+          setIsRunning(false)
+          clearInterval(pollInterval)
+        }
+      } catch (error) {
+        console.error('Error polling SFC status:', error)
+      }
+    }, 500) // Poll every 500ms
+
+    pollingIntervalRef.id = pollInterval
   }
   const handlePause = () => {
     setIsPaused(true)
-    // TODO: Add backend call to pause simulation
+    // (Pause not implemented in backend yet)
   }
   const handleStop = () => {
     setIsRunning(false)
     setIsPaused(false)
-    // TODO: Add backend call to stop simulation
+    // (Stop not implemented in backend yet)
+    if (pollingIntervalRef.id) {
+      clearInterval(pollingIntervalRef.id)
+      pollingIntervalRef.id = null
+    }
   }
   const [showSetValueModal, setShowSetValueModal] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -834,6 +900,29 @@ function SFCEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [currentDesignId, nodes, edges, copiedNode, saveCurrentDesign, copyNode, pasteNode])
 
+  // Color mapping for node status
+  const getNodeColor = (node: any) => {
+    const status = nodeStatus[node.id]
+    if (status === 'running') return '#fde047' // yellow
+    if (status === 'finished') return '#22c55e' // green
+    if (status === 'error') return '#ef4444' // red
+    return node.data?.color || '#8b5cf6'
+  }
+
+  // Patch node colors for execution status
+  const nodesWithStatus = nodes.map((node) => {
+    if (node.type === 'setvalue') {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          color: getNodeColor(node)
+        }
+      }
+    }
+    return node
+  })
+
   return (
     <div className="w-full h-full min-h-0 flex flex-col relative select-none">
       {/* Compact toolbar */}
@@ -870,7 +959,7 @@ function SFCEditor() {
           }}
         >
           <ReactFlow
-            nodes={nodes}
+            nodes={nodesWithStatus}
             edges={edges}
             nodeTypes={customNodeTypes}
             onNodesChange={onNodesChange}
