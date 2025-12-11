@@ -83,14 +83,15 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                     <div className="flex gap-2 ml-auto">
                         <Button
                             onClick={onStart}
-                            disabled={isRunning && !isPaused}
+                            disabled={isRunning}
                             variant="default"
                             size="sm"
                             className="min-w-[80px]"
                         >
                             ▶️ Start
                         </Button>
-                        <Button
+                        {/* Pause button commented out for future use */}
+                        {/* <Button
                             onClick={onPause}
                             disabled={!isRunning || isPaused}
                             variant="outline"
@@ -98,7 +99,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
                             className="min-w-[80px]"
                         >
                             ⏸️ Pause
-                        </Button>
+                        </Button> */}
                         <Button
                             onClick={onStop}
                             disabled={!isRunning}

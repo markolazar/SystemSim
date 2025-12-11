@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/sidebar"
 
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps<typeof Sidebar> & { isRunning?: boolean }) {
     const [configOpen, setConfigOpen] = React.useState(true)
 
     const handleNavigate = (page: string) => {
+        if (isRunning) return // Prevent navigation when execution is running
         const event = new CustomEvent('navigate', { detail: { page } })
         window.dispatchEvent(event)
     }
@@ -50,6 +51,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <SidebarMenuButton
                                 onClick={() => setConfigOpen(!configOpen)}
                                 className="font-medium"
+                                disabled={isRunning}
                             >
                                 <Settings className="mr-2 h-4 w-4" />
                                 Configuration
@@ -61,7 +63,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         <SidebarMenuSubButton asChild>
                                             <button
                                                 onClick={() => handleNavigate("opc-server")}
-                                                className="w-full text-left"
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
                                             >
                                                 OPC Server
                                             </button>
@@ -71,7 +74,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                         <SidebarMenuSubButton asChild>
                                             <button
                                                 onClick={() => handleNavigate("opc-nodes")}
-                                                className="w-full text-left"
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
                                             >
                                                 OPC Nodes
                                             </button>
@@ -85,7 +89,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <SidebarMenuButton asChild>
                                 <button
                                     onClick={() => handleNavigate("dashboard")}
-                                    className="font-medium w-full text-left"
+                                    className={`font-medium w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isRunning}
                                 >
                                     <span className="mr-2">🎨</span>
                                     SFC Designer

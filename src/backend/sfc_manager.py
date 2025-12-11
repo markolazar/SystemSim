@@ -13,7 +13,7 @@ class SFCExecutionManager:
     def __init__(self):
         self.active_executions = (
             {}
-        )  # design_id: {"task": ..., "clients": set(), "status": {...}}
+        )  # design_id: {"task": ..., "clients": set(), "status": {...}, "pause_event": asyncio.Event()}
 
     async def register_client(self, design_id, websocket: WebSocket):
         """Register a WebSocket client for status updates"""
@@ -94,6 +94,31 @@ class SFCExecutionManager:
         """Clear execution status for a design to prepare for next run"""
         if design_id in self.active_executions:
             self.active_executions[design_id]["status"] = {}
+
+    def get_pause_event(self, design_id):
+        """Get or create pause event for a design"""
+        if design_id not in self.active_executions:
+            self.active_executions[design_id] = {
+                "clients": set(),
+                "task": None,
+                "status": {},
+                "pause_event": asyncio.Event(),
+            }
+        if "pause_event" not in self.active_executions[design_id]:
+            self.active_executions[design_id]["pause_event"] = asyncio.Event()
+        # Set event initially (not paused)
+        self.active_executions[design_id]["pause_event"].set()
+        return self.active_executions[design_id]["pause_event"]
+
+    def pause(self, design_id):
+        """Pause execution for a design"""
+        if design_id in self.active_executions and "pause_event" in self.active_executions[design_id]:
+            self.active_executions[design_id]["pause_event"].clear()
+
+    def resume(self, design_id):
+        """Resume execution for a design"""
+        if design_id in self.active_executions and "pause_event" in self.active_executions[design_id]:
+            self.active_executions[design_id]["pause_event"].set()
 
 
 def get_variant_type(py_type):

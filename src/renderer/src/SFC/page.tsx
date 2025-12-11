@@ -654,10 +654,37 @@ function SFCEditor() {
     pollingIntervalRef.id = pollInterval
   }
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handlePause = () => {
-    setIsPaused(true)
-    // (Pause not implemented in backend yet)
+  const handlePause = async () => {
+    if (!currentDesignId) return
+
+    try {
+      const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+      await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/pause`, {
+        method: 'POST'
+      })
+      setIsPaused(true)
+    } catch (error) {
+      console.error('Failed to pause execution:', error)
+    }
   }
+  
+  /* Pause/Resume commented out for future use
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleResume = async () => {
+    if (!currentDesignId) return
+
+    try {
+      const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+      await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/resume`, {
+        method: 'POST'
+      })
+      setIsPaused(false)
+    } catch (error) {
+      console.error('Failed to resume execution:', error)
+    }
+  }
+  */
+  
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleStop = async () => {
     if (!currentDesignId) return
@@ -1215,6 +1242,12 @@ function SFCEditor() {
     return () => window.removeEventListener('openWaitModal', handleOpenWaitModal)
   }, [nodes])
 
+  // Broadcast running state to sidebar for disabling navigation
+  useEffect(() => {
+    const event = new CustomEvent('executionStateChanged', { detail: { isRunning } })
+    window.dispatchEvent(event)
+  }, [isRunning])
+
   // Load designs on mount and restore last opened design
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -1506,15 +1539,15 @@ function SFCEditor() {
             </button>
 
             <div
-              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-36 overflow-y-auto'
                 }`}
             >
               {!nodeTypesPanelCollapsed && (
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                <div className="p-2">
+                  <h3 className="text-sm font-semibold mb-2 text-gray-900 dark:text-gray-100">
                     Node Types
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {nodeTypesConfig
                       .filter((nodeType) => nodeType.type !== 'start' && nodeType.type !== 'end')
                       .map((nodeType) => (
@@ -1525,15 +1558,15 @@ function SFCEditor() {
                             event.dataTransfer.setData('application/reactflow', nodeType.label)
                             event.dataTransfer.effectAllowed = 'move'
                           }}
-                          className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
+                          className="cursor-grab active:cursor-grabbing border-2 rounded p-2 hover:shadow-lg transition-all transform hover:scale-105"
                           style={{
                             borderColor: nodeType.color,
                             backgroundColor: nodeType.bgColor
                           }}
                         >
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-2 mb-1">
                             <div
-                              className="w-8 h-8 rounded"
+                              className="w-6 h-6 rounded"
                               style={{
                                 backgroundColor: nodeType.color,
                                 ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
@@ -1542,7 +1575,7 @@ function SFCEditor() {
                               }}
                             />
                             <span
-                              className="font-medium text-gray-900"
+                              className="font-medium text-xs text-gray-900"
                               style={{ color: nodeType.color }}
                             >
                               {nodeType.label}
@@ -1552,7 +1585,7 @@ function SFCEditor() {
                         </div>
                       ))}
                   </div>
-                  <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-800 dark:text-blue-300">
                       <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click
                       for more options.

@@ -15,11 +15,23 @@ import {
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import SFC from "@/SFC/page"
+import { useState, useEffect } from "react"
 
 export default function Page() {
+    const [isExecutionRunning, setIsExecutionRunning] = useState(false)
+
+    useEffect(() => {
+        const handleExecutionStateChange = (event: CustomEvent) => {
+            setIsExecutionRunning(event.detail.isRunning)
+        }
+
+        window.addEventListener('executionStateChanged' as any, handleExecutionStateChange as EventListener)
+        return () => window.removeEventListener('executionStateChanged' as any, handleExecutionStateChange as EventListener)
+    }, [])
+
     return (
         <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar isRunning={isExecutionRunning} />
             <SidebarInset className="flex flex-col h-screen">
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b select-none">
                     <div className="flex items-center gap-2 px-3">

@@ -64,6 +64,21 @@ def setup_sfc_routes(app, sfc_manager: SFCExecutionManager):
         await execute_sfc(design_id, nodes, edges, opc_url, opc_prefix, sfc_manager)
         return {"success": True, "message": "SFC execution started"}
 
+    # Pause/Resume endpoints - commented out for future use
+    # @app.post("/sfc/designs/{design_id}/pause")
+    # async def pause_sfc_endpoint(design_id: int):
+    #     """Pause SFC execution for a design"""
+    #     sfc_manager.pause(design_id)
+    #     await sfc_manager.broadcast(design_id, {"status": "paused"})
+    #     return {"success": True, "message": "SFC execution paused"}
+    #
+    # @app.post("/sfc/designs/{design_id}/resume")
+    # async def resume_sfc_endpoint(design_id: int):
+    #     """Resume SFC execution for a design"""
+    #     sfc_manager.resume(design_id)
+    #     await sfc_manager.broadcast(design_id, {"status": "resumed"})
+    #     return {"success": True, "message": "SFC execution resumed"}
+
     @app.post("/sfc/designs/{design_id}/stop")
     async def stop_sfc_endpoint(design_id: int):
         """Stop SFC execution for a design"""
