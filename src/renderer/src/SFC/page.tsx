@@ -73,6 +73,14 @@ const nodeTypesConfig = [
     shape: 'circle'
   },
   {
+    type: 'comment',
+    label: 'Comment',
+    color: '#f97316',
+    bgColor: '#ffedd5',
+    description: 'Add a comment note (aesthetic only)',
+    shape: 'rectangle'
+  },
+  {
     type: 'end',
     label: 'End',
     color: '#ef4444',
@@ -412,6 +420,61 @@ const WaitNode = ({ data, selected }: any) => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
+const CommentNode = ({ data, selected }: any) => {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const event = new CustomEvent('openCommentModal', { detail: { nodeId: data.nodeId } })
+    window.dispatchEvent(event)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const commentConfig = (data as any).commentConfig || {}
+  const commentText = commentConfig.commentText || 'Add comment...'
+
+  return (
+    <div
+      style={{
+        padding: '12px 14px',
+        border: `2px dashed ${data.color}`,
+        backgroundColor: data.bgColor,
+        minWidth: '140px',
+        maxWidth: '280px',
+        minHeight: '60px',
+        textAlign: 'left',
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#1f2937',
+        boxShadow: selected
+          ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 4px 8px rgba(0, 0, 0, 0.1)'
+          : '0 2px 4px rgba(0, 0, 0, 0.05)',
+        borderRadius: 8,
+        cursor: 'pointer',
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap',
+        transition: 'all 0.2s ease',
+        fontStyle: 'italic',
+        lineHeight: 1.4
+      }}
+      onDoubleClick={handleDoubleClick}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: data.color, width: 14, height: 14 }}
+      />
+      {commentText}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: data.color, width: 14, height: 14 }}
+      />
+    </div>
+  )
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const EndNode = ({ data, selected }: any) => (
   <div
     style={{
@@ -447,6 +510,7 @@ const customNodeTypes = {
   condition: ConditionNode,
   setvalue: SetValueNode,
   wait: WaitNode,
+  comment: CommentNode,
   end: EndNode
 }
 
@@ -735,6 +799,12 @@ function SFCEditor() {
   const [waitForm, setWaitForm] = useState({
     nodeName: '',
     waitTime: ''
+  })
+
+  // Section modal state
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const [commentForm, setCommentForm] = useState({
+    commentText: ''
   })
 
   const onNodesChange = useCallback(
@@ -1089,6 +1159,37 @@ function SFCEditor() {
     handleWaitModalClose()
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleCommentModalClose = () => {
+    setShowCommentModal(false)
+    setSelectedNodeId(null)
+    setCommentForm({
+      commentText: ''
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleCommentSubmit = () => {
+    if (selectedNodeId) {
+      // Update the node data with the form values
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                commentConfig: { ...commentForm }
+              }
+            }
+          }
+          return node
+        })
+      )
+    }
+    handleCommentModalClose()
+  }
+
   // Auto-layout using Dagre
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleAutoLayout = () => {
@@ -1096,7 +1197,7 @@ function SFCEditor() {
     g.setGraph({ rankdir: 'LR', nodesep: 150, ranksep: 250 })
     g.setDefaultEdgeLabel(() => ({}))
 
-    // Add all nodes
+    // Add ALL nodes (both workflow and comments)
     nodes.forEach((node) => {
       g.setNode(node.id, {
         width: 160,
@@ -1104,7 +1205,7 @@ function SFCEditor() {
       })
     })
 
-    // Add all edges
+    // Add ALL edges
     edges.forEach((edge) => {
       g.setEdge(edge.source, edge.target)
     })
@@ -1112,16 +1213,19 @@ function SFCEditor() {
     // Run layout
     dagre.layout(g)
 
-    // Update node positions
-    const newNodes = nodes.map((node) => {
+    // Update all node positions based on layout
+    const layoutedNodes = nodes.map((node) => {
       const pos = g.node(node.id)
-      return {
-        ...node,
-        position: { x: pos.x - 80, y: pos.y - 40 } // Center the node on the calculated position
+      if (pos) {
+        return {
+          ...node,
+          position: { x: pos.x - 80, y: pos.y - 40 }
+        }
       }
+      return node
     })
 
-    setNodes(newNodes)
+    setNodes(layoutedNodes)
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps, @typescript-eslint/explicit-function-return-type
@@ -1242,6 +1346,33 @@ function SFCEditor() {
     return () => window.removeEventListener('openWaitModal', handleOpenWaitModal)
   }, [nodes])
 
+  // Handle Comment modal open event
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const handleOpenCommentModal = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const nodeId = customEvent.detail.nodeId
+      setSelectedNodeId(nodeId)
+
+      // Load existing values from the node if they exist
+      const node = nodes.find((n) => n.id === nodeId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (node?.data && (node.data as any).commentConfig) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setCommentForm((node.data as any).commentConfig)
+      } else {
+        setCommentForm({
+          commentText: ''
+        })
+      }
+
+      setShowCommentModal(true)
+    }
+
+    window.addEventListener('openCommentModal', handleOpenCommentModal)
+    return () => window.removeEventListener('openCommentModal', handleOpenCommentModal)
+  }, [nodes])
+
   // Broadcast running state to sidebar for disabling navigation
   useEffect(() => {
     const event = new CustomEvent('executionStateChanged', { detail: { isRunning } })
@@ -1277,18 +1408,15 @@ function SFCEditor() {
         try {
           const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
           const currentViewport = reactFlowInstance.getViewport()
-          await fetch(
-            `http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/save`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                nodes: JSON.stringify(nodes),
-                edges: JSON.stringify(edges),
-                viewport: JSON.stringify(currentViewport)
-              })
-            }
-          )
+          await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nodes: JSON.stringify(nodes),
+              edges: JSON.stringify(edges),
+              viewport: JSON.stringify(currentViewport)
+            })
+          })
         } catch (error) {
           console.error('Failed to auto-save design on unmount:', error)
         }
@@ -1345,26 +1473,30 @@ function SFCEditor() {
     return node.data?.color || '#8b5cf6'
   }
 
-  // Color mapping for edge status based on source node
+  // Color mapping for edge status based on source and target nodes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
   const getEdgeColor = (edge: any) => {
     const sourceNode = nodes.find((n) => n.id === edge.source)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sourceStatus = nodeStatus[edge.source]?.status
     const targetStatus = nodeStatus[edge.target]?.status
 
-    // If source is start/end node, use target node's status for coloring
-    if (sourceNode?.type === 'start' || sourceNode?.type === 'end') {
-      if (targetStatus === 'running') return '#fde047' // yellow
-      if (targetStatus === 'finished') return '#22c55e' // green
-      if (targetStatus === 'error') return '#ef4444' // red
-      return '#94a3b8' // default gray
+    // If both source and target are finished, the edge was successfully traversed - green
+    if (sourceStatus === 'finished' && targetStatus === 'finished') {
+      return '#22c55e' // green - execution successfully went through this edge
     }
 
-    if (sourceStatus === 'running') return '#fde047' // yellow - source is running
-    if (sourceStatus === 'finished') return '#22c55e' // green - source is finished
-    if (sourceStatus === 'error') return '#ef4444' // red - source had error
-    return '#94a3b8' // default gray
+    // If source is running or target is running, show yellow
+    if (sourceStatus === 'running' || targetStatus === 'running') {
+      return '#fde047' // yellow - execution in progress
+    }
+
+    // If either has an error, show red
+    if (sourceStatus === 'error' || targetStatus === 'error') {
+      return '#ef4444' // red - error occurred
+    }
+
+    // Default gray for idle/unexecuted edges
+    return '#94a3b8'
   }
 
   // Patch node colors for execution status
@@ -1408,7 +1540,12 @@ function SFCEditor() {
           </Button>
         )}
         {currentDesignId && (
-          <Button onClick={handleAutoLayout} size="sm" variant="outline" title="Organize nodes automatically">
+          <Button
+            onClick={handleAutoLayout}
+            size="sm"
+            variant="outline"
+            title="Organize nodes automatically"
+          >
             🎯 Auto Layout
           </Button>
         )}
@@ -1770,6 +1907,37 @@ function SFCEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Comment Modal */}
+      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add Comment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="commentText">Comment Text</Label>
+              <textarea
+                id="commentText"
+                placeholder="Type your comment here..."
+                value={commentForm.commentText}
+                onChange={(e) => setCommentForm({ ...commentForm, commentText: e.target.value })}
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-950 text-gray-900 dark:text-white min-h-[100px] resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                This comment is purely aesthetic and will not affect SFC execution.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCommentModalClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleCommentSubmit}>Save Comment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* New Design Dialog */}
       <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
         <DialogContent className="sm:max-w-[400px]">
