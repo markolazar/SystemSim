@@ -112,12 +112,18 @@ class SFCExecutionManager:
 
     def pause(self, design_id):
         """Pause execution for a design"""
-        if design_id in self.active_executions and "pause_event" in self.active_executions[design_id]:
+        if (
+            design_id in self.active_executions
+            and "pause_event" in self.active_executions[design_id]
+        ):
             self.active_executions[design_id]["pause_event"].clear()
 
     def resume(self, design_id):
         """Resume execution for a design"""
-        if design_id in self.active_executions and "pause_event" in self.active_executions[design_id]:
+        if (
+            design_id in self.active_executions
+            and "pause_event" in self.active_executions[design_id]
+        ):
             self.active_executions[design_id]["pause_event"].set()
 
 

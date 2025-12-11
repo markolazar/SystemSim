@@ -667,7 +667,7 @@ function SFCEditor() {
       console.error('Failed to pause execution:', error)
     }
   }
-  
+
   /* Pause/Resume commented out for future use
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleResume = async () => {
@@ -684,7 +684,7 @@ function SFCEditor() {
     }
   }
   */
-  
+
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleStop = async () => {
     if (!currentDesignId) return
