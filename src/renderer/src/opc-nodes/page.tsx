@@ -16,6 +16,17 @@ import {
 import { ModeToggle } from "@/components/mode-toggle"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect, useMemo } from "react"
 
 interface OPCNode {
@@ -41,6 +52,11 @@ export default function OPCNodesPage() {
     const [children, setChildren] = useState<{ node_id: string; browse_name: string }[]>([])
     const [isChildrenLoading, setIsChildrenLoading] = useState(true)
     const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
+    const [childrenSearch, setChildrenSearch] = useState("")
+    const [childrenSortKey, setChildrenSortKey] = useState<"node_id" | "browse_name">("node_id")
+    const [childrenSortDir, setChildrenSortDir] = useState<"asc" | "desc">("asc")
+    const [childrenPageSize, setChildrenPageSize] = useState(10)
+    const [childrenPage, setChildrenPage] = useState(1)
     const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
     const [pageSize, setPageSize] = useState(25)
@@ -173,6 +189,53 @@ export default function OPCNodesPage() {
         return sortedNodes.slice(start, start + pageSize)
     }, [sortedNodes, currentPage, pageSize])
 
+    // Sorting and filtering for children
+    const filteredChildren = useMemo(() => {
+        return children.filter(child =>
+            child.node_id.toLowerCase().includes(childrenSearch.toLowerCase()) ||
+            (child.browse_name && child.browse_name.toLowerCase().includes(childrenSearch.toLowerCase()))
+        )
+    }, [children, childrenSearch])
+
+    const sortedChildren = useMemo(() => {
+        const copy = [...filteredChildren]
+        copy.sort((a, b) => {
+            const valA = a[childrenSortKey]
+            const valB = b[childrenSortKey]
+
+            if (valA == null && valB == null) return 0
+            if (valA == null) return 1
+            if (valB == null) return -1
+
+            return childrenSortDir === "asc"
+                ? String(valA).localeCompare(String(valB))
+                : String(valB).localeCompare(String(valA))
+        })
+        return copy
+    }, [filteredChildren, childrenSortKey, childrenSortDir])
+
+    const totalChildrenPages = Math.max(1, Math.ceil(sortedChildren.length / childrenPageSize))
+    const currentChildrenPage = Math.min(childrenPage, totalChildrenPages)
+
+    const pagedChildren = useMemo(() => {
+        const start = (currentChildrenPage - 1) * childrenPageSize
+        return sortedChildren.slice(start, start + childrenPageSize)
+    }, [sortedChildren, currentChildrenPage, childrenPageSize])
+
+    const goToChildrenPage = (newPage: number) => {
+        const safePage = Math.min(Math.max(newPage, 1), totalChildrenPages)
+        setChildrenPage(safePage)
+    }
+
+    const toggleChildrenSort = (key: "node_id" | "browse_name") => {
+        if (childrenSortKey === key) {
+            setChildrenSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+        } else {
+            setChildrenSortKey(key)
+            setChildrenSortDir("asc")
+        }
+    }
+
     const toggleSort = (key: keyof OPCNode) => {
         if (sortKey === key) {
             setSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
@@ -304,58 +367,125 @@ export default function OPCNodesPage() {
                                     ) : children.length === 0 ? (
                                         <p className="text-sm text-muted-foreground">No child nodes found under this prefix.</p>
                                     ) : (
-                                        <div className="relative">
-                                            <div
-                                                className="space-y-2 border rounded p-3 overflow-auto resize-y"
-                                                style={{
-                                                    height: `${childListHeight}px`,
-                                                    minHeight: '192px',
-                                                    maxHeight: '800px'
-                                                }}
-                                                onMouseUp={(e) => {
-                                                    const newHeight = (e.target as HTMLElement).offsetHeight
-                                                    if (newHeight !== childListHeight) {
-                                                        setChildListHeight(newHeight)
-                                                    }
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-2 text-sm sticky top-0 bg-background pb-2 border-b">
-                                                    <button
-                                                        type="button"
-                                                        onClick={selectAllChildren}
-                                                        className="rounded border px-2 py-1 hover:bg-muted"
+                                        <div className="space-y-4">
+                                            {/* Search Box */}
+                                            <Input
+                                                placeholder="Search by node ID or name..."
+                                                value={childrenSearch}
+                                                onChange={(e) => setChildrenSearch(e.target.value)}
+                                                className="h-9 text-sm"
+                                            />
+
+                                            <div className="flex items-center justify-between gap-3 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-muted-foreground">Rows per page:</span>
+                                                    <select
+                                                        value={childrenPageSize}
+                                                        onChange={(e) => {
+                                                            setChildrenPageSize(Number(e.target.value))
+                                                            setChildrenPage(1)
+                                                        }}
+                                                        className="rounded border px-2 py-1 text-sm bg-background"
                                                     >
-                                                        Select all
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={clearSelection}
-                                                        className="rounded border px-2 py-1 hover:bg-muted"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                    <span className="text-muted-foreground">
-                                                        {selectedChildIds.length}/{children.length} selected
-                                                    </span>
+                                                        {[10, 25, 50, 100].map((size) => (
+                                                            <option key={size} value={size}>{size}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
-                                                <div className="space-y-1 pt-2">
-                                                    {children.map((child) => (
-                                                        <label key={child.node_id} className="flex items-center gap-2 text-sm">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedChildIds.includes(child.node_id)}
-                                                                onChange={() => toggleChild(child.node_id)}
-                                                            />
-                                                            <span className="font-mono text-xs break-all">{child.node_id}</span>
-                                                            <span className="text-muted-foreground">{child.browse_name}</span>
-                                                        </label>
-                                                    ))}
+                                                <span className="text-muted-foreground">
+                                                    Showing {(currentChildrenPage - 1) * childrenPageSize + 1}–{Math.min(currentChildrenPage * childrenPageSize, sortedChildren.length)} of {sortedChildren.length}
+                                                </span>
+                                            </div>
+
+                                            {/* Children DataGrid */}
+                                            <div className="border rounded-lg overflow-x-auto">
+                                                <Table className="min-w-full">
+                                                    <TableHeader>
+                                                        <TableRow className="bg-muted">
+                                                            <TableHead className="w-12">
+                                                                <Checkbox
+                                                                    checked={sortedChildren.length > 0 && sortedChildren.every(c => selectedChildIds.includes(c.node_id))}
+                                                                    onCheckedChange={() => {
+                                                                        if (sortedChildren.every(c => selectedChildIds.includes(c.node_id))) {
+                                                                            setSelectedChildIds(selectedChildIds.filter(id => !sortedChildren.map(c => c.node_id).includes(id)))
+                                                                        } else {
+                                                                            setSelectedChildIds([...new Set([...selectedChildIds, ...sortedChildren.map(c => c.node_id)])])
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </TableHead>
+                                                            <TableHead
+                                                                className="cursor-pointer hover:bg-muted/80"
+                                                                onClick={() => toggleChildrenSort("node_id")}
+                                                            >
+                                                                Node ID {childrenSortKey === "node_id" && (childrenSortDir === "asc" ? "↑" : "↓")}
+                                                            </TableHead>
+                                                            <TableHead
+                                                                className="cursor-pointer hover:bg-muted/80"
+                                                                onClick={() => toggleChildrenSort("browse_name")}
+                                                            >
+                                                                Browse Name {childrenSortKey === "browse_name" && (childrenSortDir === "asc" ? "↑" : "↓")}
+                                                            </TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {pagedChildren.map((child) => (
+                                                            <TableRow key={child.node_id} className="hover:bg-muted/50">
+                                                                <TableCell>
+                                                                    <Checkbox
+                                                                        checked={selectedChildIds.includes(child.node_id)}
+                                                                        onCheckedChange={() => toggleChild(child.node_id)}
+                                                                    />
+                                                                </TableCell>
+                                                                <TableCell className="font-mono text-xs">{child.node_id}</TableCell>
+                                                                <TableCell className="text-sm text-muted-foreground">{child.browse_name}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => goToChildrenPage(currentChildrenPage - 1)}
+                                                        disabled={currentChildrenPage === 1}
+                                                        className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                    >
+                                                        Prev
+                                                    </button>
+                                                    <span className="px-2">
+                                                        Page {currentChildrenPage} / {totalChildrenPages}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => goToChildrenPage(currentChildrenPage + 1)}
+                                                        disabled={currentChildrenPage === totalChildrenPages}
+                                                        className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                    >
+                                                        Next
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-50 pointer-events-none">
-                                                <svg className="w-full h-full" viewBox="0 0 16 16">
-                                                    <path d="M16 16L16 12L12 16Z M16 8L8 16Z M16 4L4 16Z" fill="currentColor" />
-                                                </svg>
+
+                                            {/* Selection Controls */}
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={selectAllChildren}
+                                                >
+                                                    Select all
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={clearSelection}
+                                                >
+                                                    Clear
+                                                </Button>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {selectedChildIds.length}/{children.length} selected
+                                                </span>
                                             </div>
                                         </div>
                                     )}

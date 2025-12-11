@@ -18,6 +18,7 @@ import {
 
 export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps<typeof Sidebar> & { isRunning?: boolean }) {
     const [configOpen, setConfigOpen] = React.useState(true)
+    const [simulationOpen, setSimulationOpen] = React.useState(true)
 
     const handleNavigate = (page: string) => {
         if (isRunning) return // Prevent navigation when execution is running
@@ -96,6 +97,46 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                                     SFC Designer
                                 </button>
                             </SidebarMenuButton>
+                        </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                onClick={() => setSimulationOpen(!simulationOpen)}
+                                className="font-medium"
+                                disabled={isRunning}
+                            >
+                                <span className="mr-2">⚙️</span>
+                                Simulation
+                                <span className={`ml-auto text-lg transition-transform ${simulationOpen ? 'rotate-90' : ''}`}>›</span>
+                            </SidebarMenuButton>
+                            {simulationOpen && (
+                                <SidebarMenuSub>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("simulation-config")}
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
+                                            >
+                                                <span className="mr-2">🔧</span>
+                                                Config
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("simulation-reports")}
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
+                                            >
+                                                <span className="mr-2">📊</span>
+                                                Reports
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                </SidebarMenuSub>
+                            )}
                         </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarGroup>

@@ -56,6 +56,19 @@ async def init_database():
         """
         )
 
+        # Create simulation config table
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS track_for_simulation (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL UNIQUE,
+                data_type TEXT,
+                regex_pattern TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
         # Create SFC designs table
         await db.execute(
             """
@@ -116,6 +129,18 @@ async def migrate_database():
                 await db.execute("ALTER TABLE sfc_design_data ADD COLUMN viewport TEXT")
                 await db.commit()
                 print("Added viewport column to sfc_design_data table")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
+        # Ensure data_type exists on track_for_simulation
+        cursor = await db.execute("PRAGMA table_info(track_for_simulation)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        if "data_type" not in column_names:
+            try:
+                await db.execute("ALTER TABLE track_for_simulation ADD COLUMN data_type TEXT")
+                await db.commit()
+                print("Added data_type column to track_for_simulation table")
             except Exception as e:
                 print(f"Migration error: {e}")
 
@@ -418,3 +443,77 @@ async def delete_sfc_design(design_id: int):
         )
         await db.execute("DELETE FROM sfc_designs WHERE id = ?", (design_id,))
         await db.commit()
+
+
+async def save_simulation_config(regex_pattern: str, tracked_nodes: list):
+    """Save simulation tracking configuration to database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Build lookup for data types from existing OPC nodes
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute("SELECT node_id, data_type FROM opc_nodes")
+        type_rows = await cursor.fetchall()
+        data_type_map = {row["node_id"]: row["data_type"] for row in type_rows}
+
+        # Clear existing tracked nodes
+        await db.execute("DELETE FROM track_for_simulation")
+
+        # Insert new tracked nodes
+        for node_id in tracked_nodes:
+            await db.execute(
+                """
+                INSERT INTO track_for_simulation (node_id, data_type, regex_pattern)
+                VALUES (?, ?, ?)
+            """,
+                (node_id, data_type_map.get(node_id), regex_pattern),
+            )
+
+        await db.commit()
+
+
+async def get_simulation_config():
+    """Get simulation tracking configuration from database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Get the latest regex pattern
+        cursor = await db.execute(
+            """
+            SELECT DISTINCT regex_pattern
+            FROM track_for_simulation
+            ORDER BY updated_at DESC
+            LIMIT 1
+        """
+        )
+        pattern_row = await cursor.fetchone()
+        regex_pattern = pattern_row[0] if pattern_row else None
+
+        # Get all tracked nodes
+        cursor = await db.execute(
+            """
+            SELECT node_id
+            FROM track_for_simulation
+            ORDER BY node_id
+        """
+        )
+        rows = await cursor.fetchall()
+        tracked_nodes = [row[0] for row in rows]
+
+        return {"regex_pattern": regex_pattern, "tracked_nodes": tracked_nodes}
+
+
+async def get_tracked_nodes():
+    """Get list of tracked nodes for simulation"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            """
+            SELECT node_id
+            FROM track_for_simulation
+            ORDER BY node_id
+        """
+        )
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]

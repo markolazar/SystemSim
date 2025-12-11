@@ -65,7 +65,7 @@ def generate_short_node_id(node_id: str, prefix: str = "") -> str:
 
 
 def discover_nodes_recursive(
-    node, parent_id=None, max_depth=5, current_depth=0, prefix=""
+    node, parent_id=None, max_depth=6, current_depth=0, prefix=""
 ):
     """
     Recursively discover all nodes in the OPC server
