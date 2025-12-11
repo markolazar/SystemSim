@@ -174,7 +174,7 @@ async def execute_sfc(
                 sfc_manager.update_node_status(
                     design_id, node_id, "running", elapsed_time=elapsed
                 )
-                await asyncio.sleep(0.2)  # Update every 200ms (less overhead)
+                await asyncio.sleep(0.05)  # Update every 50ms (4x faster)
 
         update_task = asyncio.create_task(broadcast_elapsed_time())
 
@@ -280,9 +280,12 @@ async def execute_sfc(
             for nid in list(active_tasks.keys()):
                 if active_tasks[nid] in done:
                     del active_tasks[nid]
-                    pending.discard(nid)
 
             await asyncio.sleep(0.01)
+
+            # Remove finished nodes from pending after a short delay to ensure
+            # all status updates have propagated
+            pending = setvalue_nodes - finished
 
         print("DEBUG: SFC execution completed")
         await sfc_manager.broadcast(design_id, {"status": "all_finished"})
