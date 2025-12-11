@@ -168,6 +168,8 @@ const SetValueNode = ({ data, selected }: any) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const setValueConfig = (data as any).setValueConfig || {};
   const displayText = setValueConfig.opcNode || data.label;
+  // Replace dots with newlines for better visibility
+  const formattedDisplayText = displayText.replace(/\./g, '\n');
 
   // Show start/end value and time if available
   const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time;
@@ -207,7 +209,7 @@ const SetValueNode = ({ data, selected }: any) => {
       <Handle type="target" position={Position.Left} style={{ background: data.color, width: 20, height: 20, alignSelf: 'center' }} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div style={{ minHeight: 22, fontWeight: 700, color: '#4f46e5', wordBreak: 'break-word', whiteSpace: 'pre-line' }} title={displayText}>
-          {displayText}
+          {formattedDisplayText}
         </div>
         {hasDetails && (
           <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4, lineHeight: 1.3 }}>
