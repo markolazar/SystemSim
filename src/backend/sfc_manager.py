@@ -3,8 +3,16 @@
 import asyncio
 import json
 import time
+import uuid
 from fastapi import WebSocket, WebSocketDisconnect
 from opcua import Client, ua
+from database import (
+    get_tracked_nodes_full,
+    get_simulation_config,
+    create_simulation_run,
+    finish_simulation_run,
+    save_simulation_samples,
+)
 
 
 class SFCExecutionManager:
@@ -14,6 +22,10 @@ class SFCExecutionManager:
         self.active_executions = (
             {}
         )  # design_id: {"task": ..., "clients": set(), "status": {...}, "pause_event": asyncio.Event()}
+        # monitor tracking per design
+        # monitor_task: asyncio.Task
+        # monitor_stop: asyncio.Event
+        # run_id: str
 
     async def register_client(self, design_id, websocket: WebSocket):
         """Register a WebSocket client for status updates"""
@@ -59,6 +71,47 @@ class SFCExecutionManager:
         """Clear the execution task for a design"""
         if design_id in self.active_executions:
             self.active_executions[design_id]["task"] = None
+            self.active_executions[design_id].pop("monitor_task", None)
+            self.active_executions[design_id].pop("monitor_stop", None)
+            self.active_executions[design_id].pop("run_id", None)
+
+    def set_monitor(self, design_id, task, stop_event, run_id: str):
+        if design_id not in self.active_executions:
+            self.active_executions[design_id] = {
+                "clients": set(),
+                "task": None,
+                "status": {},
+            }
+        self.active_executions[design_id]["monitor_task"] = task
+        self.active_executions[design_id]["monitor_stop"] = stop_event
+        self.active_executions[design_id]["run_id"] = run_id
+
+    def get_monitor(self, design_id):
+        if design_id not in self.active_executions:
+            return None, None, None
+        exe = self.active_executions[design_id]
+        return (
+            exe.get("monitor_task"),
+            exe.get("monitor_stop"),
+            exe.get("run_id"),
+        )
+
+    async def stop_monitor(self, design_id):
+        task, stop_event, run_id = self.get_monitor(design_id)
+        if stop_event:
+            stop_event.set()
+        if task:
+            try:
+                await task
+            except Exception:
+                pass
+        self.clear_monitor(design_id)
+
+    def clear_monitor(self, design_id):
+        if design_id in self.active_executions:
+            self.active_executions[design_id].pop("monitor_task", None)
+            self.active_executions[design_id].pop("monitor_stop", None)
+            self.active_executions[design_id].pop("run_id", None)
 
     def update_node_status(
         self, design_id, node_id, status, error=None, elapsed_time=None
@@ -125,6 +178,129 @@ class SFCExecutionManager:
             and "pause_event" in self.active_executions[design_id]
         ):
             self.active_executions[design_id]["pause_event"].set()
+
+
+async def start_simulation_monitor(
+    design_id: int, opc_url: str, opc_prefix: str, sfc_manager: SFCExecutionManager
+):
+    """Start a background task that polls tracked OPC nodes and records changes."""
+
+    tracked = await get_tracked_nodes_full()
+    if not tracked:
+        print("Simulation monitor: no tracked nodes configured, skipping monitor")
+        return None
+
+    config = await get_simulation_config()
+    regex = config.get("regex_pattern") if config else None
+
+    run_id = f"{design_id}-{int(time.time() * 1000)}-{uuid.uuid4().hex[:6]}"
+    run_name = f"SFC-{design_id}-{time.strftime('%Y%m%d-%H%M%S')}"
+
+    await create_simulation_run(run_id, run_name, design_id, regex)
+
+    stop_event = asyncio.Event()
+    task = asyncio.create_task(
+        _monitor_tracked_nodes(run_id, tracked, opc_url, opc_prefix, stop_event)
+    )
+    sfc_manager.set_monitor(design_id, task, stop_event, run_id)
+    return run_id
+
+
+async def _monitor_tracked_nodes(
+    run_id: str,
+    tracked_nodes: list[dict],
+    opc_url: str,
+    opc_prefix: str,
+    stop_event: asyncio.Event,
+):
+    """Poll tracked nodes ~40-50ms and store changed values."""
+
+    client = None
+    last_values = {}
+
+    try:
+        client = Client(opc_url)
+        client.connect()
+
+        # Prepare node objects once
+        node_objs = []
+        for item in tracked_nodes:
+            try:
+                node_objs.append(client.get_node(item["node_id"]))
+            except Exception as e:
+                print(f"Monitor: failed to get node {item['node_id']}: {e}")
+                node_objs.append(None)
+
+        while not stop_event.is_set():
+            samples = []
+            ts_ms = int(time.time() * 1000)
+
+            try:
+                # Attempt batch read; fallback to individual gets
+                try:
+                    batch_indices = [
+                        i for i, obj in enumerate(node_objs) if obj is not None
+                    ]
+                    batch_nodes = [node_objs[i] for i in batch_indices]
+                    batch_values = client.get_values(batch_nodes) if batch_nodes else []
+                    values = [None] * len(node_objs)
+                    for idx, val in zip(batch_indices, batch_values):
+                        values[idx] = val
+                except Exception:
+                    values = []
+                    for obj in node_objs:
+                        if obj is None:
+                            values.append(None)
+                        else:
+                            try:
+                                values.append(obj.get_value())
+                            except Exception:
+                                values.append(None)
+
+                for idx, value in enumerate(values):
+                    node_meta = tracked_nodes[idx]
+                    node_id = node_meta["node_id"]
+                    last = last_values.get(node_id)
+                    if last is None or value != last:
+                        try:
+                            value_str = json.dumps(value, default=str)
+                        except Exception:
+                            value_str = str(value)
+                        samples.append(
+                            (
+                                run_id,
+                                ts_ms,
+                                node_id,
+                                node_meta.get("data_type"),
+                                value_str,
+                                None,
+                                None,
+                            )
+                        )
+                        last_values[node_id] = value
+            except Exception as e:
+                print(f"Monitor loop error: {e}")
+
+            if samples:
+                try:
+                    await save_simulation_samples(samples)
+                except Exception as e:
+                    print(f"Monitor save error: {e}")
+
+            await asyncio.sleep(0.04)
+
+    except Exception as e:
+        print(f"Simulation monitor failed: {e}")
+    finally:
+        if client is not None:
+            try:
+                client.disconnect()
+            except Exception:
+                pass
+        try:
+            await finish_simulation_run(run_id)
+        except Exception as e:
+            print(f"Failed to finish run {run_id}: {e}")
 
 
 def get_variant_type(py_type):
@@ -371,6 +547,7 @@ async def execute_sfc(
 
             print("DEBUG: SFC execution completed")
             await sfc_manager.broadcast(design_id, {"status": "all_finished"})
+            await sfc_manager.stop_monitor(design_id)
 
         except asyncio.CancelledError:
             print(f"DEBUG: SFC execution cancelled for design {design_id}")
@@ -380,11 +557,15 @@ async def execute_sfc(
             # Wait for all tasks to finish cancellation
             if active_tasks:
                 await asyncio.gather(*active_tasks.values(), return_exceptions=True)
+            await sfc_manager.stop_monitor(design_id)
             raise  # Re-raise to properly handle cancellation
 
     # Create and start the execution task
     task = asyncio.create_task(run_sfc())
     sfc_manager.set_task(design_id, task)
+
+    # Kick off background monitor of tracked nodes for this run
+    await start_simulation_monitor(design_id, opc_url, opc_prefix, sfc_manager)
 
 
 async def _write_to_opc_node(

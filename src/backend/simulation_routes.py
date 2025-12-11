@@ -8,6 +8,8 @@ from database import (
     get_simulation_config,
     get_tracked_nodes,
     get_opc_nodes,
+    list_simulation_runs,
+    get_run_samples,
 )
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
@@ -88,3 +90,26 @@ async def get_simulation_tracked_nodes():
         return {"success": True, "nodes": nodes, "count": len(nodes)}
     except Exception as e:
         return {"success": False, "message": f"Failed to load tracked nodes: {str(e)}"}
+
+
+@router.get("/runs")
+async def list_runs():
+    """List recent simulation runs"""
+    try:
+        runs = await list_simulation_runs()
+        return {"success": True, "runs": runs, "count": len(runs)}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to list runs: {str(e)}"}
+
+
+@router.get("/runs/{run_id}/samples")
+async def get_run_samples_api(
+    run_id: str, node_ids: str | None = None, limit: int = 5000
+):
+    """Fetch samples for a simulation run. node_ids is a comma-separated list."""
+    try:
+        ids_list = [nid for nid in node_ids.split(",") if nid] if node_ids else None
+        samples = await get_run_samples(run_id, ids_list, limit)
+        return {"success": True, "samples": samples, "count": len(samples)}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to load samples: {str(e)}"}

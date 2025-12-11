@@ -69,6 +69,41 @@ async def init_database():
         """
         )
 
+        # Simulation runs metadata
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS simulation_runs (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                sfc_design_id INTEGER,
+                regex_pattern TEXT,
+                started_at INTEGER,
+                finished_at INTEGER,
+                note TEXT
+            )
+        """
+        )
+
+        # Time-series samples for simulations
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS simulation_samples (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                ts INTEGER NOT NULL,
+                node_id TEXT NOT NULL,
+                data_type TEXT,
+                value TEXT,
+                quality INTEGER,
+                source_ts INTEGER,
+                FOREIGN KEY (run_id) REFERENCES simulation_runs(id) ON DELETE CASCADE
+            )
+        """
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_samples_run_node_ts ON simulation_samples(run_id, node_id, ts)"
+        )
+
         # Create SFC designs table
         await db.execute(
             """
@@ -131,6 +166,62 @@ async def migrate_database():
                 print("Added viewport column to sfc_design_data table")
             except Exception as e:
                 print(f"Migration error: {e}")
+
+        # Ensure data_type exists on track_for_simulation
+        cursor = await db.execute("PRAGMA table_info(track_for_simulation)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        if "data_type" not in column_names:
+            try:
+                await db.execute(
+                    "ALTER TABLE track_for_simulation ADD COLUMN data_type TEXT"
+                )
+                await db.commit()
+                print("Added data_type column to track_for_simulation table")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
+        # Ensure simulation_runs exists
+        try:
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS simulation_runs (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    sfc_design_id INTEGER,
+                    regex_pattern TEXT,
+                    started_at INTEGER,
+                    finished_at INTEGER,
+                    note TEXT
+                )
+            """
+            )
+        except Exception as e:
+            print(f"Migration error creating simulation_runs: {e}")
+
+        # Ensure simulation_samples exists and index present
+        try:
+            await db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS simulation_samples (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    run_id TEXT NOT NULL,
+                    ts INTEGER NOT NULL,
+                    node_id TEXT NOT NULL,
+                    data_type TEXT,
+                    value TEXT,
+                    quality INTEGER,
+                    source_ts INTEGER,
+                    FOREIGN KEY (run_id) REFERENCES simulation_runs(id) ON DELETE CASCADE
+                )
+            """
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_samples_run_node_ts ON simulation_samples(run_id, node_id, ts)"
+            )
+            await db.commit()
+        except Exception as e:
+            print(f"Migration error creating simulation_samples: {e}")
 
         # Ensure data_type exists on track_for_simulation
         cursor = await db.execute("PRAGMA table_info(track_for_simulation)")
@@ -519,3 +610,125 @@ async def get_tracked_nodes():
         )
         rows = await cursor.fetchall()
         return [row[0] for row in rows]
+
+
+async def get_tracked_nodes_full():
+    """Get tracked nodes with data type for simulation monitoring"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT node_id, data_type, regex_pattern
+            FROM track_for_simulation
+            ORDER BY node_id
+            """
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def create_simulation_run(
+    run_id: str,
+    name: str,
+    sfc_design_id: int | None,
+    regex_pattern: str | None = None,
+    note: str | None = None,
+):
+    """Create a simulation run metadata record"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            """
+            INSERT OR REPLACE INTO simulation_runs (id, name, sfc_design_id, regex_pattern, started_at, finished_at, note)
+            VALUES (?, ?, ?, ?, strftime('%s','now')*1000, NULL, ?)
+            """,
+            (run_id, name, sfc_design_id, regex_pattern, note),
+        )
+        await db.commit()
+
+
+async def finish_simulation_run(run_id: str):
+    """Mark simulation run as finished"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            "UPDATE simulation_runs SET finished_at = strftime('%s','now')*1000 WHERE id = ?",
+            (run_id,),
+        )
+        await db.commit()
+
+
+async def save_simulation_samples(samples: list[tuple]):
+    """Bulk insert simulation samples: (run_id, ts, node_id, data_type, value, quality, source_ts)"""
+    if not samples:
+        return
+
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.executemany(
+            """
+            INSERT INTO simulation_samples (run_id, ts, node_id, data_type, value, quality, source_ts)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            samples,
+        )
+        await db.commit()
+
+
+async def list_simulation_runs():
+    """Return recent simulation runs"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT id, name, sfc_design_id, regex_pattern, started_at, finished_at, note
+            FROM simulation_runs
+            ORDER BY started_at DESC
+            LIMIT 200
+            """
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def get_run_samples(
+    run_id: str, node_ids: list[str] | None = None, limit: int = 5000
+):
+    """Fetch samples for a run, optionally filtered by node_ids."""
+    db_path = get_db_path()
+
+    placeholders = ""
+    params: list = [run_id]
+    if node_ids:
+        placeholders = ",".join(["?"] * len(node_ids))
+        params.extend(node_ids)
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        if node_ids:
+            query = f"""
+                SELECT run_id, ts, node_id, data_type, value, quality, source_ts
+                FROM simulation_samples
+                WHERE run_id = ? AND node_id IN ({placeholders})
+                ORDER BY ts
+                LIMIT ?
+            """
+        else:
+            query = """
+                SELECT run_id, ts, node_id, data_type, value, quality, source_ts
+                FROM simulation_samples
+                WHERE run_id = ?
+                ORDER BY ts
+                LIMIT ?
+            """
+        params.append(limit)
+        cursor = await db.execute(query, params)
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]

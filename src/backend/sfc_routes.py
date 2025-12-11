@@ -86,6 +86,9 @@ def setup_sfc_routes(app, sfc_manager: SFCExecutionManager):
         if task and not task.done():
             task.cancel()
 
+        # Stop monitor task if running
+        await sfc_manager.stop_monitor(design_id)
+
         # Clear execution status
         sfc_manager.clear_status(design_id)
 
