@@ -370,6 +370,9 @@ function SFCEditor() {
   const [copiedNode, setCopiedNode] = useState<any>(null)
   const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 })
 
+  // Node types panel state
+  const [nodeTypesPanelCollapsed, setNodeTypesPanelCollapsed] = useState(false)
+
   // SFC Design state
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [designs, setDesigns] = useState<any[]>([])
@@ -1094,51 +1097,73 @@ function SFCEditor() {
             style={{ width: '100%', height: '100%' }}
           />
         </div>
-        {/* Right pane with draggable nodes */}
-        <div className="w-64 border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 p-4 overflow-y-auto">
-          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-            Node Types
-          </h3>
-          <div className="space-y-3">
-            {nodeTypesConfig
-              .filter((nodeType) => nodeType.type !== 'start' && nodeType.type !== 'end')
-              .map((nodeType) => (
-                <div
-                  key={nodeType.type}
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData('application/reactflow', nodeType.label)
-                    event.dataTransfer.effectAllowed = 'move'
-                  }}
-                  className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
-                  style={{
-                    borderColor: nodeType.color,
-                    backgroundColor: nodeType.bgColor
-                  }}
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div
-                      className="w-8 h-8 rounded"
-                      style={{
-                        backgroundColor: nodeType.color,
-                        ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
-                        ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
-                        ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
-                      }}
-                    />
-                    <span className="font-medium text-gray-900" style={{ color: nodeType.color }}>
-                      {nodeType.label}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-700">{nodeType.description}</p>
+        {/* Right pane with draggable nodes - with external collapse button */}
+        <div className="relative">
+          {/* Collapse/Expand Button - Same style as bottom bar */}
+          <button
+            onClick={() => setNodeTypesPanelCollapsed(!nodeTypesPanelCollapsed)}
+            className="absolute left-1/2 -top-4 transform -translate-x-1/2 bg-gray-200 dark:bg-gray-800 rounded-full px-2 py-1 text-xs shadow border border-gray-300 dark:border-gray-700"
+            aria-label={nodeTypesPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
+            style={{ zIndex: 41 }}
+          >
+            {nodeTypesPanelCollapsed ? '▼' : '▲'}
+          </button>
+
+          <div
+            className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 overflow-y-auto transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-0' : 'w-64'
+              }`}
+          >
+            {!nodeTypesPanelCollapsed && (
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                  Node Types
+                </h3>
+                <div className="space-y-3">
+                  {nodeTypesConfig
+                    .filter((nodeType) => nodeType.type !== 'start' && nodeType.type !== 'end')
+                    .map((nodeType) => (
+                      <div
+                        key={nodeType.type}
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('application/reactflow', nodeType.label)
+                          event.dataTransfer.effectAllowed = 'move'
+                        }}
+                        className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
+                        style={{
+                          borderColor: nodeType.color,
+                          backgroundColor: nodeType.bgColor
+                        }}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div
+                            className="w-8 h-8 rounded"
+                            style={{
+                              backgroundColor: nodeType.color,
+                              ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
+                              ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
+                              ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
+                            }}
+                          />
+                          <span
+                            className="font-medium text-gray-900"
+                            style={{ color: nodeType.color }}
+                          >
+                            {nodeType.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-700">{nodeType.description}</p>
+                      </div>
+                    ))}
                 </div>
-              ))}
-          </div>
-          <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-xs text-blue-800 dark:text-blue-300">
-              <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for more
-              options.
-            </p>
+                <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-xs text-blue-800 dark:text-blue-300">
+                    <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for
+                    more options.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {/* Canvas context menu */}
