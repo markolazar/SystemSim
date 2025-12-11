@@ -388,12 +388,20 @@ function SFCEditor() {
   const handleStart = async () => {
     if (!currentDesignId) return;
 
+    // Auto-reset before starting
+    setIsRunning(false)
+    setIsPaused(false)
+    setNodeStatus({})
+    if (pollingIntervalRef.id) {
+      clearInterval(pollingIntervalRef.id)
+      pollingIntervalRef.id = null
+    }
+
     // Auto-save before starting execution
     await saveCurrentDesign();
 
     setIsRunning(true)
     setIsPaused(false)
-    // Do not reset nodeStatus, keep previous results until next run
 
     const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
 
@@ -449,7 +457,7 @@ function SFCEditor() {
           clearInterval(pollInterval)
           // Trigger confetti celebration
           confetti({
-            particleCount: 100,
+            particleCount: 200,
             spread: 70,
             origin: { y: 0.6 }
           })
@@ -962,7 +970,19 @@ function SFCEditor() {
 
   // Color mapping for edge status based on source node
   const getEdgeColor = (edge: any) => {
+    const sourceNode = nodes.find(n => n.id === edge.source)
+    const targetNode = nodes.find(n => n.id === edge.target)
     const sourceStatus = nodeStatus[edge.source]?.status
+    const targetStatus = nodeStatus[edge.target]?.status
+    
+    // If source is start/end node, use target node's status for coloring
+    if (sourceNode?.type === 'start' || sourceNode?.type === 'end') {
+      if (targetStatus === 'running') return '#fde047' // yellow
+      if (targetStatus === 'finished') return '#22c55e' // green
+      if (targetStatus === 'error') return '#ef4444' // red
+      return '#94a3b8' // default gray
+    }
+    
     if (sourceStatus === 'running') return '#fde047' // yellow - source is running
     if (sourceStatus === 'finished') return '#22c55e' // green - source is finished
     if (sourceStatus === 'error') return '#ef4444' // red - source had error
