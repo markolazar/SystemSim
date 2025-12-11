@@ -30,6 +30,7 @@ interface SampleRow {
     run_id: string
     ts: number
     node_id: string
+    short_node_id: string | null
     data_type: string | null
     value: string
     quality: number | null
@@ -51,6 +52,7 @@ export default function SimulationReportsPage() {
     const [samplesLoading, setSamplesLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [chartOrder, setChartOrder] = useState<string[]>([])
+    const [deleting, setDeleting] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -119,20 +121,30 @@ export default function SimulationReportsPage() {
         return map
     }, [samples])
 
+    const nodeShortIdMap = useMemo(() => {
+        const map = new Map<string, string | null>()
+        for (const row of samples) {
+            if (!map.has(row.node_id)) {
+                map.set(row.node_id, row.short_node_id)
+            }
+        }
+        return map
+    }, [samples])
+
     const seriesEntries = useMemo(() => {
-        const entries: { nodeId: string; data: SeriesPoint[] }[] = []
+        const entries: { nodeId: string; shortNodeId: string | null; data: SeriesPoint[] }[] = []
         for (const [nodeId, data] of nodeSeries.entries()) {
-            if (data.length > 1) entries.push({ nodeId, data })
+            if (data.length > 1) entries.push({ nodeId, shortNodeId: nodeShortIdMap.get(nodeId) || null, data })
         }
         return entries
-    }, [nodeSeries])
+    }, [nodeSeries, nodeShortIdMap])
 
     useEffect(() => {
         setChartOrder(seriesEntries.map(e => e.nodeId))
     }, [seriesEntries])
 
     const orderedEntries = useMemo(() => {
-        return chartOrder.map(nodeId => seriesEntries.find(e => e.nodeId === nodeId)).filter(Boolean) as { nodeId: string; data: SeriesPoint[] }[]
+        return chartOrder.map(nodeId => seriesEntries.find(e => e.nodeId === nodeId)).filter(Boolean) as { nodeId: string; shortNodeId: string | null; data: SeriesPoint[] }[]
     }, [chartOrder, seriesEntries])
 
     const handleDragEnd = (event: any) => {
@@ -144,17 +156,18 @@ export default function SimulationReportsPage() {
         }
     }
 
-    const ChartCard = ({ nodeId, data, color, xDomain }: { nodeId: string; data: SeriesPoint[]; color: string; xDomain?: [number, number] }) => {
+    const ChartCard = ({ nodeId, shortNodeId, data, color, xDomain }: { nodeId: string; shortNodeId: string | null; data: SeriesPoint[]; color: string; xDomain?: [number, number] }) => {
         const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: nodeId })
         const style = {
             transform: CSS.Transform.toString(transform),
             transition,
             opacity: isDragging ? 0.5 : 1,
         }
+        const displayTitle = shortNodeId || nodeId
         return (
             <Card ref={setNodeRef} style={style} className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between p-4">
-                    <CardTitle className="text-sm font-semibold break-all">{nodeId}</CardTitle>
+                    <CardTitle className="text-sm font-semibold break-all">{displayTitle}</CardTitle>
                     <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
                     </div>
@@ -271,6 +284,31 @@ export default function SimulationReportsPage() {
                                 <Button variant="outline" onClick={() => selectedRun && setSelectedRun(selectedRun)} disabled={samplesLoading}>
                                     Refresh
                                 </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={async () => {
+                                        if (!selectedRun || !confirm("Delete this simulation run? This cannot be undone.")) return
+                                        setDeleting(true)
+                                        try {
+                                            const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}`, { method: "DELETE" })
+                                            const data = await res.json()
+                                            if (data.success) {
+                                                setRuns(runs.filter(r => r.id !== selectedRun))
+                                                const nextRun = runs.find(r => r.id !== selectedRun)
+                                                setSelectedRun(nextRun?.id || null)
+                                            } else {
+                                                setError(data.message || "Failed to delete run")
+                                            }
+                                        } catch (e) {
+                                            setError(`Failed to delete: ${e}`)
+                                        } finally {
+                                            setDeleting(false)
+                                        }
+                                    }}
+                                    disabled={deleting || !selectedRun}
+                                >
+                                    {deleting ? "Deleting..." : "Delete Run"}
+                                </Button>
                             </div>
                         </div>
 
@@ -314,10 +352,11 @@ export default function SimulationReportsPage() {
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={chartOrder} strategy={verticalListSortingStrategy}>
                                     <div className="space-y-4">
-                                        {orderedEntries.map(({ nodeId, data }) => (
+                                        {orderedEntries.map(({ nodeId, shortNodeId, data }) => (
                                             <ChartCard
                                                 key={nodeId}
                                                 nodeId={nodeId}
+                                                shortNodeId={shortNodeId}
                                                 data={data}
                                                 color={colorPalette[seriesEntries.findIndex(e => e.nodeId === nodeId) % colorPalette.length]}
                                                 xDomain={xDomain}

@@ -10,6 +10,7 @@ from database import (
     get_opc_nodes,
     list_simulation_runs,
     get_run_samples,
+    delete_simulation_run,
 )
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
@@ -113,3 +114,13 @@ async def get_run_samples_api(
         return {"success": True, "samples": samples, "count": len(samples)}
     except Exception as e:
         return {"success": False, "message": f"Failed to load samples: {str(e)}"}
+
+
+@router.delete("/runs/{run_id}")
+async def delete_run(run_id: str):
+    """Delete a simulation run and all its samples."""
+    try:
+        await delete_simulation_run(run_id)
+        return {"success": True, "message": f"Deleted simulation run {run_id}"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to delete run: {str(e)}"}

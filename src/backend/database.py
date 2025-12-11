@@ -92,6 +92,7 @@ async def init_database():
                 run_id TEXT NOT NULL,
                 ts INTEGER NOT NULL,
                 node_id TEXT NOT NULL,
+                short_node_id TEXT,
                 data_type TEXT,
                 value TEXT,
                 quality INTEGER,
@@ -178,6 +179,20 @@ async def migrate_database():
                 )
                 await db.commit()
                 print("Added data_type column to track_for_simulation table")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
+        # Ensure short_node_id exists on simulation_samples
+        cursor = await db.execute("PRAGMA table_info(simulation_samples)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        if "short_node_id" not in column_names:
+            try:
+                await db.execute(
+                    "ALTER TABLE simulation_samples ADD COLUMN short_node_id TEXT"
+                )
+                await db.commit()
+                print("Added short_node_id column to simulation_samples table")
             except Exception as e:
                 print(f"Migration error: {e}")
 
@@ -663,7 +678,7 @@ async def finish_simulation_run(run_id: str):
 
 
 async def save_simulation_samples(samples: list[tuple]):
-    """Bulk insert simulation samples: (run_id, ts, node_id, data_type, value, quality, source_ts)"""
+    """Bulk insert simulation samples: (run_id, ts, node_id, short_node_id, data_type, value, quality, source_ts)"""
     if not samples:
         return
 
@@ -672,8 +687,8 @@ async def save_simulation_samples(samples: list[tuple]):
     async with aiosqlite.connect(db_path) as db:
         await db.executemany(
             """
-            INSERT INTO simulation_samples (run_id, ts, node_id, data_type, value, quality, source_ts)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO simulation_samples (run_id, ts, node_id, short_node_id, data_type, value, quality, source_ts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             samples,
         )
@@ -714,7 +729,7 @@ async def get_run_samples(
         db.row_factory = aiosqlite.Row
         if node_ids:
             query = f"""
-                SELECT run_id, ts, node_id, data_type, value, quality, source_ts
+                SELECT run_id, ts, node_id, short_node_id, data_type, value, quality, source_ts
                 FROM simulation_samples
                 WHERE run_id = ? AND node_id IN ({placeholders})
                 ORDER BY ts
@@ -722,7 +737,7 @@ async def get_run_samples(
             """
         else:
             query = """
-                SELECT run_id, ts, node_id, data_type, value, quality, source_ts
+                SELECT run_id, ts, node_id, short_node_id, data_type, value, quality, source_ts
                 FROM simulation_samples
                 WHERE run_id = ?
                 ORDER BY ts
@@ -732,3 +747,27 @@ async def get_run_samples(
         cursor = await db.execute(query, params)
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+async def get_short_node_id(node_id: str) -> str | None:
+    """Get short_node_id from opc_nodes table by node_id."""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute(
+            "SELECT shortnodeid FROM opc_nodes WHERE node_id = ?", (node_id,)
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
+
+async def delete_simulation_run(run_id: str):
+    """Delete a simulation run and its samples."""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Delete samples first (cascade)
+        await db.execute("DELETE FROM simulation_samples WHERE run_id = ?", (run_id,))
+        # Delete run metadata
+        await db.execute("DELETE FROM simulation_runs WHERE id = ?", (run_id,))
+        await db.commit()

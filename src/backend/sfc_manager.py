@@ -12,6 +12,7 @@ from database import (
     create_simulation_run,
     finish_simulation_run,
     save_simulation_samples,
+    get_short_node_id,
 )
 
 
@@ -266,11 +267,16 @@ async def _monitor_tracked_nodes(
                             value_str = json.dumps(value, default=str)
                         except Exception:
                             value_str = str(value)
+
+                        # Look up short_node_id from database
+                        short_node_id = await get_short_node_id(node_id)
+
                         samples.append(
                             (
                                 run_id,
                                 ts_ms,
                                 node_id,
+                                short_node_id,
                                 node_meta.get("data_type"),
                                 value_str,
                                 None,
