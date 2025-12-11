@@ -227,7 +227,16 @@ const SetValueNode = ({ data, selected }: any) => {
           </div>
         )}
         {elapsedTime !== undefined && (
-          <div style={{ fontSize: 11, color: '#059669', marginTop: 4, fontWeight: 700 }}>
+          <div style={{
+            fontSize: 11,
+            marginTop: 4,
+            fontWeight: 700,
+            backgroundColor: data.color,
+            color: 'white',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            display: 'inline-block'
+          }}>
             Elapsed: {elapsedTime}s
           </div>
         )}
@@ -379,6 +388,14 @@ function SFCEditor() {
   const [isRunning, setIsRunning] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
 
+  // Log console for execution messages
+  const [executionLogs, setExecutionLogs] = useState<Array<{ time: string, type: 'info' | 'error' | 'success', message: string }>>([])
+
+  const addLog = (type: 'info' | 'error' | 'success', message: string) => {
+    const time = new Date().toLocaleTimeString()
+    setExecutionLogs(prev => [...prev, { time, type, message }])
+  }
+
   // Set Value modal state
   // Node execution status state
   const [nodeStatus, setNodeStatus] = useState<{ [nodeId: string]: { status: 'idle' | 'running' | 'finished' | 'error', elapsedTime?: number } }>({})
@@ -392,6 +409,7 @@ function SFCEditor() {
     setIsRunning(false)
     setIsPaused(false)
     setNodeStatus({})
+    setExecutionLogs([]) // Clear logs
     if (pollingIntervalRef.id) {
       clearInterval(pollingIntervalRef.id)
       pollingIntervalRef.id = null
@@ -400,6 +418,7 @@ function SFCEditor() {
     // Auto-save before starting execution
     await saveCurrentDesign();
 
+    addLog('info', 'Starting SFC execution...')
     setIsRunning(true)
     setIsPaused(false)
 
@@ -413,8 +432,7 @@ function SFCEditor() {
     })
 
     if (!response.ok) {
-      setErrorMessage('Failed to start SFC execution')
-      setShowErrorDialog(true)
+      addLog('error', 'Failed to start SFC execution')
       setIsRunning(false)
       return
     }
@@ -440,8 +458,7 @@ function SFCEditor() {
               }
             }))
             if (nodeStatus.status === 'error' && nodeStatus.error) {
-              setErrorMessage(`Node ${nodeId} error: ${nodeStatus.error}`)
-              setShowErrorDialog(true)
+              addLog('error', `Node ${nodeId}: ${nodeStatus.error}`)
             }
           })
         }
@@ -453,6 +470,12 @@ function SFCEditor() {
         })
 
         if (allFinished && Object.keys(nodeStatuses).length > 0) {
+          const hasErrors = Object.values(nodeStatuses).some((status: any) => status.status === 'error')
+          if (hasErrors) {
+            addLog('error', 'Execution completed with errors')
+          } else {
+            addLog('success', 'Execution completed successfully!')
+          }
           setIsRunning(false)
           clearInterval(pollInterval)
           // Trigger confetti celebration
@@ -486,6 +509,7 @@ function SFCEditor() {
     setIsRunning(false)
     setIsPaused(false)
     setNodeStatus({})
+    setExecutionLogs([])
     if (pollingIntervalRef.id) {
       clearInterval(pollingIntervalRef.id)
       pollingIntervalRef.id = null
@@ -974,7 +998,7 @@ function SFCEditor() {
     const targetNode = nodes.find(n => n.id === edge.target)
     const sourceStatus = nodeStatus[edge.source]?.status
     const targetStatus = nodeStatus[edge.target]?.status
-    
+
     // If source is start/end node, use target node's status for coloring
     if (sourceNode?.type === 'start' || sourceNode?.type === 'end') {
       if (targetStatus === 'running') return '#fde047' // yellow
@@ -982,7 +1006,7 @@ function SFCEditor() {
       if (targetStatus === 'error') return '#ef4444' // red
       return '#94a3b8' // default gray
     }
-    
+
     if (sourceStatus === 'running') return '#fde047' // yellow - source is running
     if (sourceStatus === 'finished') return '#22c55e' // green - source is finished
     if (sourceStatus === 'error') return '#ef4444' // red - source had error
@@ -1433,6 +1457,8 @@ function SFCEditor() {
         onReset={handleReset}
         isRunning={isRunning}
         isPaused={isPaused}
+        executionLogs={executionLogs}
+        onClearLogs={() => setExecutionLogs([])}
       />
     </div>
   )

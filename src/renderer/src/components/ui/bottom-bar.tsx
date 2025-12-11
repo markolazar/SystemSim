@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from './button';
 
+interface ExecutionLog {
+    time: string;
+    type: 'info' | 'error' | 'success';
+    message: string;
+}
+
 interface BottomBarProps {
     onStart: () => void;
     onPause: () => void;
@@ -8,9 +14,20 @@ interface BottomBarProps {
     onReset: () => void;
     isRunning: boolean;
     isPaused: boolean;
+    executionLogs?: ExecutionLog[];
+    onClearLogs?: () => void;
 }
 
-export const BottomBar: React.FC<BottomBarProps> = ({ onStart, onPause, onStop, onReset, isRunning, isPaused }) => {
+export const BottomBar: React.FC<BottomBarProps> = ({
+    onStart,
+    onPause,
+    onStop,
+    onReset,
+    isRunning,
+    isPaused,
+    executionLogs = [],
+    onClearLogs
+}) => {
     const [collapsed, setCollapsed] = useState(false);
 
     return (
@@ -27,40 +44,80 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onStart, onPause, onStop, 
                 {collapsed ? '▲' : '▼'}
             </button>
             {!collapsed && (
-                <div className="flex gap-4 mx-auto">
-                    <Button
-                        onClick={onStart}
-                        disabled={isRunning && !isPaused}
-                        variant="default"
-                        size="sm"
-                    >
-                        Start
-                    </Button>
-                    <Button
-                        onClick={onPause}
-                        disabled={!isRunning || isPaused}
-                        variant="outline"
-                        size="sm"
-                    >
-                        Pause
-                    </Button>
-                    <Button
-                        onClick={onStop}
-                        disabled={!isRunning}
-                        variant="destructive"
-                        size="sm"
-                    >
-                        Stop
-                    </Button>
-                    <Button
-                        onClick={onReset}
-                        disabled={isRunning}
-                        variant="outline"
-                        size="sm"
-                        className="ml-4"
-                    >
-                        Reset
-                    </Button>
+                <div className="flex gap-4 w-full items-center">
+                    {/* Execution Log Display */}
+                    {executionLogs.length > 0 && (
+                        <div className="flex-1 flex flex-col gap-1 bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 max-h-16 overflow-y-auto">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                    Execution Log
+                                </span>
+                                {onClearLogs && (
+                                    <button
+                                        onClick={onClearLogs}
+                                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-lg font-bold leading-none"
+                                        title="Clear logs"
+                                    >
+                                        ×
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-1 font-mono text-xs">
+                                {executionLogs.map((log, i) => (
+                                    <div key={i} className="flex gap-2">
+                                        <span className="text-gray-500 dark:text-gray-500 whitespace-nowrap">[{log.time}]</span>
+                                        <span className={
+                                            log.type === 'error' ? 'text-red-500' :
+                                                log.type === 'success' ? 'text-green-500' :
+                                                    'text-blue-500'
+                                        }>
+                                            {log.message}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Control Buttons - Right Side */}
+                    <div className="flex gap-2 ml-auto">
+                        <Button
+                            onClick={onStart}
+                            disabled={isRunning && !isPaused}
+                            variant="default"
+                            size="sm"
+                            className="min-w-[80px]"
+                        >
+                            ▶️ Start
+                        </Button>
+                        <Button
+                            onClick={onPause}
+                            disabled={!isRunning || isPaused}
+                            variant="outline"
+                            size="sm"
+                            className="min-w-[80px]"
+                        >
+                            ⏸️ Pause
+                        </Button>
+                        <Button
+                            onClick={onStop}
+                            disabled={!isRunning}
+                            variant="destructive"
+                            size="sm"
+                            className="min-w-[80px]"
+                        >
+                            ⏹️ Stop
+                        </Button>
+                        <Button
+                            onClick={onReset}
+                            disabled={isRunning}
+                            variant="outline"
+                            size="sm"
+                            className="min-w-[80px]"
+                        >
+                            🔄 Reset
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
