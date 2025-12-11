@@ -235,17 +235,19 @@ async def execute_sfc(
         print(f"DEBUG: Starting SFC execution with {len(setvalue_nodes)} nodes")
         pending = setvalue_nodes.copy()
         iteration = 0
+        active_tasks = {}  # Maps node_id -> task
 
-        while pending:
+        while pending or active_tasks:
+            # Find nodes that can run (all dependencies finished, not already running)
             can_run = [
                 nid
                 for nid in pending
-                if all(src in finished for src in incoming[nid]) and nid not in running
+                if all(src in finished for src in incoming[nid]) and nid not in active_tasks
             ]
 
             if iteration % 20 == 0:  # Only print every 20 iterations to reduce spam
                 print(
-                    f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={running}"
+                    f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={list(active_tasks.keys())}"
                 )
                 for nid in pending:
                     print(
@@ -253,18 +255,28 @@ async def execute_sfc(
                     )
             iteration += 1
 
-            if not can_run:
-                await asyncio.sleep(0.05)
+            # Start new tasks
+            for nid in can_run:
+                running.add(nid)
+                active_tasks[nid] = asyncio.create_task(execute_node(nid))
+
+            if not active_tasks:
+                if not can_run:
+                    await asyncio.sleep(0.05)
                 continue
 
-            tasks = [asyncio.create_task(execute_node(nid)) for nid in can_run]
-            running.update(can_run)
+            # Wait for at least one task to complete
+            done, pending_tasks = await asyncio.wait(
+                active_tasks.values(), return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # Clean up completed tasks
+            for nid in list(active_tasks.keys()):
+                if active_tasks[nid] in done:
+                    del active_tasks[nid]
+                    pending.discard(nid)
+
             await asyncio.sleep(0.01)
-
-            while not any(nid in finished for nid in can_run):
-                await asyncio.sleep(0.05)
-
-            pending -= finished
 
         print("DEBUG: SFC execution completed")
         await sfc_manager.broadcast(design_id, {"status": "all_finished"})
