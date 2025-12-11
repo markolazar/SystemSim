@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import confetti from 'canvas-confetti'
+import * as dagre from 'dagre'
 import {
   ReactFlow,
   Background,
@@ -933,6 +934,41 @@ function SFCEditor() {
     handleSetValueModalClose()
   }
 
+  // Auto-layout using Dagre
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleAutoLayout = () => {
+    const g = new dagre.graphlib.Graph({ compound: false })
+    g.setGraph({ rankdir: 'LR', nodesep: 150, ranksep: 250 })
+    g.setDefaultEdgeLabel(() => ({}))
+
+    // Add all nodes
+    nodes.forEach((node) => {
+      g.setNode(node.id, {
+        width: 160,
+        height: 80
+      })
+    })
+
+    // Add all edges
+    edges.forEach((edge) => {
+      g.setEdge(edge.source, edge.target)
+    })
+
+    // Run layout
+    dagre.layout(g)
+
+    // Update node positions
+    const newNodes = nodes.map((node) => {
+      const pos = g.node(node.id)
+      return {
+        ...node,
+        position: { x: pos.x - 80, y: pos.y - 40 } // Center the node on the calculated position
+      }
+    })
+
+    setNodes(newNodes)
+  }
+
   // eslint-disable-next-line react-hooks/exhaustive-deps, @typescript-eslint/explicit-function-return-type
   const addBlock = (blockType: string, position?: { x: number; y: number }) => {
     const typeConfig = nodeTypesConfig.find((t) => t.label === blockType)
@@ -1149,6 +1185,11 @@ function SFCEditor() {
         {currentDesignId && (
           <Button onClick={saveCurrentDesign} size="sm" variant="default">
             Save
+          </Button>
+        )}
+        {currentDesignId && (
+          <Button onClick={handleAutoLayout} size="sm" variant="outline" title="Organize nodes automatically">
+            🎯 Auto Layout
           </Button>
         )}
         {currentDesignId && designs.find((d) => d.id === currentDesignId) && (

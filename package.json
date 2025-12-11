@@ -52,6 +52,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
+    "dagre": "^0.8.5",
     "lucide-react": "^0.555.0",
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
