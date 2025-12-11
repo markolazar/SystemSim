@@ -1319,9 +1319,8 @@ function SFCEditor() {
             </button>
 
             <div
-              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${
-                nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
-              }`}
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
+                }`}
             >
               {!nodeTypesPanelCollapsed && (
                 <div className="p-4">
