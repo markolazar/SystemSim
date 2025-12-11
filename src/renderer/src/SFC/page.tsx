@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import confetti from 'canvas-confetti'
 import {
   ReactFlow,
   applyNodeChanges,
@@ -446,6 +447,12 @@ function SFCEditor() {
         if (allFinished && Object.keys(nodeStatuses).length > 0) {
           setIsRunning(false)
           clearInterval(pollInterval)
+          // Trigger confetti celebration
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          })
         }
       } catch (error) {
         console.error('Error polling SFC status:', error)
