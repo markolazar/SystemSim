@@ -151,6 +151,7 @@ async def execute_sfc(
     print(f"DEBUG: Outgoing edges: {outgoing}")
 
     # Mark non-executable nodes as finished immediately so they don't block execution
+    # IMPORTANT: Initialize fresh for each execution to avoid state persistence
     finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
     running = set()
 
@@ -251,6 +252,11 @@ async def execute_sfc(
 
     async def run_sfc():
         """Main SFC execution loop"""
+        # Reinitialize state to prevent contamination from previous runs
+        nonlocal finished, running
+        finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
+        running = set()
+
         print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
         pending = executable_nodes.copy()
         iteration = 0
