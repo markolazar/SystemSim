@@ -142,20 +142,20 @@ async def execute_sfc(
             outgoing[source].append(target)
             incoming[target].append(source)
 
-    # Only execute setvalue nodes
-    setvalue_nodes = {n["id"] for n in nodes if n["type"] == "setvalue"}
+    # Execute setvalue and wait nodes
+    executable_nodes = {n["id"] for n in nodes if n["type"] in ["setvalue", "wait"]}
 
-    print(f"DEBUG: Found {len(setvalue_nodes)} setvalue nodes: {setvalue_nodes}")
+    print(f"DEBUG: Found {len(executable_nodes)} executable nodes: {executable_nodes}")
     print(f"DEBUG: Node map keys: {list(node_map.keys())}")
     print(f"DEBUG: Incoming edges: {incoming}")
     print(f"DEBUG: Outgoing edges: {outgoing}")
 
-    # Mark non-setvalue nodes as finished immediately so they don't block execution
-    finished = {n["id"] for n in nodes if n["type"] != "setvalue"}
+    # Mark non-executable nodes as finished immediately so they don't block execution
+    finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
     running = set()
 
     async def execute_node(node_id):
-        """Execute a single setvalue node"""
+        """Execute a single node (setvalue or wait)"""
         node = node_map[node_id]
         node_start_time = time.time()
 
@@ -179,25 +179,39 @@ async def execute_sfc(
         update_task = asyncio.create_task(broadcast_elapsed_time())
 
         try:
-            setValueConfig = node["data"].get("setValueConfig", {})
-            opc_node = setValueConfig.get("opcNode")
-            start_value = setValueConfig.get("startValue")
-            end_value = setValueConfig.get("endValue")
-            duration = float(setValueConfig.get("time", 1))
-            steps = max(1, int(duration * 10))
+            node_type = node.get("type")
+            
+            # Handle SetValue nodes
+            if node_type == "setvalue":
+                setValueConfig = node["data"].get("setValueConfig", {})
+                opc_node = setValueConfig.get("opcNode")
+                start_value = setValueConfig.get("startValue")
+                end_value = setValueConfig.get("endValue")
+                duration = float(setValueConfig.get("time", 1))
+                steps = max(1, int(duration * 10))
 
-            if opc_node:
-                await _write_to_opc_node(
-                    opc_url,
-                    opc_prefix,
-                    opc_node,
-                    start_value,
-                    end_value,
-                    steps,
-                    duration,
-                )
+                if opc_node:
+                    await _write_to_opc_node(
+                        opc_url,
+                        opc_prefix,
+                        opc_node,
+                        start_value,
+                        end_value,
+                        steps,
+                        duration,
+                    )
+                else:
+                    await asyncio.sleep(duration)
+            
+            # Handle Wait nodes
+            elif node_type == "wait":
+                waitConfig = node["data"].get("waitConfig", {})
+                wait_time = float(waitConfig.get("waitTime", 0))
+                await asyncio.sleep(wait_time)
+            
             else:
-                await asyncio.sleep(duration)
+                # Skip unknown node types
+                pass
 
             stop_updates = True
             await update_task
@@ -237,8 +251,8 @@ async def execute_sfc(
 
     async def run_sfc():
         """Main SFC execution loop"""
-        print(f"DEBUG: Starting SFC execution with {len(setvalue_nodes)} nodes")
-        pending = setvalue_nodes.copy()
+        print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
+        pending = executable_nodes.copy()
         iteration = 0
         active_tasks = {}  # Maps node_id -> task
 
@@ -285,7 +299,7 @@ async def execute_sfc(
 
             # Remove finished nodes from pending after a short delay to ensure
             # all status updates have propagated
-            pending = setvalue_nodes - finished
+            pending = executable_nodes - finished
 
         print("DEBUG: SFC execution completed")
         await sfc_manager.broadcast(design_id, {"status": "all_finished"})

@@ -301,40 +301,115 @@ const SetValueNode = ({ data, selected }: any) => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
-const WaitNode = ({ data, selected }: any) => (
-  <div
-    style={{
-      width: '100px',
-      height: '100px',
-      borderRadius: '50%',
-      border: `3px solid ${data.color}`,
-      backgroundColor: data.bgColor,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: '700',
-      fontSize: '14px',
-      color: '#1f2937',
-      textAlign: 'center',
-      boxShadow: selected
-        ? '0 0 0 3px rgba(59, 130, 246, 0.5)'
-        : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      padding: '8px'
-    }}
-  >
-    <Handle
-      type="target"
-      position={Position.Left}
-      style={{ background: data.color, width: '20px', height: '20px' }}
-    />
-    {data.label}
-    <Handle
-      type="source"
-      position={Position.Right}
-      style={{ background: data.color, width: '20px', height: '20px' }}
-    />
-  </div>
-)
+const WaitNode = ({ data, selected }: any) => {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const event = new CustomEvent('openWaitModal', { detail: { nodeId: data.nodeId } })
+    window.dispatchEvent(event)
+  }
+
+  // Get wait config or use defaults
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const waitConfig = (data as any).waitConfig || {}
+  const displayText = waitConfig.nodeName || data.label
+  const waitTime = waitConfig.waitTime || '0'
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elapsedTime = (data as any).elapsedTime
+
+  return (
+    <div
+      style={{
+        padding: '16px 18px',
+        border: `2px solid ${data.color}`,
+        backgroundColor: data.bgColor,
+        minWidth: '160px',
+        maxWidth: '360px',
+        minHeight: '80px',
+        textAlign: 'left',
+        fontWeight: 600,
+        fontSize: 13,
+        color: '#1f2937',
+        boxShadow: selected
+          ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 8px 16px rgba(0, 0, 0, 0.15)'
+          : '0 8px 16px rgba(0, 0, 0, 0.1)',
+        borderRadius: 12,
+        cursor: 'pointer',
+        wordBreak: 'break-all',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: 12,
+        transition: 'all 0.2s ease'
+      }}
+      onDoubleClick={handleDoubleClick}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}
+      >
+        <div
+          style={{
+            minHeight: 24,
+            fontWeight: 700,
+            fontSize: 14,
+            color: '#1f2937',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-line'
+          }}
+          title={displayText}
+        >
+          {displayText}
+        </div>
+        {waitTime && (
+          <div
+            style={{
+              fontSize: 11,
+              color: '#6b7280',
+              marginTop: 6,
+              lineHeight: 1.4,
+              opacity: 0.85
+            }}
+          >
+            Wait: <b>{waitTime}s</b>
+          </div>
+        )}
+        {elapsedTime !== undefined && (
+          <div
+            style={{
+              fontSize: 11,
+              marginTop: 6,
+              fontWeight: 700,
+              backgroundColor: data.color,
+              color: 'white',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              display: 'inline-block'
+            }}
+          >
+            Elapsed: {elapsedTime}s
+          </div>
+        )}
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
+    </div>
+  )
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const EndNode = ({ data, selected }: any) => (
@@ -612,6 +687,13 @@ function SFCEditor() {
     startValue: '',
     endValue: '',
     time: ''
+  })
+
+  // Wait node modal state
+  const [showWaitModal, setShowWaitModal] = useState(false)
+  const [waitForm, setWaitForm] = useState({
+    nodeName: '',
+    waitTime: ''
   })
 
   const onNodesChange = useCallback(
@@ -934,6 +1016,38 @@ function SFCEditor() {
     handleSetValueModalClose()
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleWaitModalClose = () => {
+    setShowWaitModal(false)
+    setSelectedNodeId(null)
+    setWaitForm({
+      nodeName: '',
+      waitTime: ''
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleWaitSubmit = () => {
+    if (selectedNodeId) {
+      // Update the node data with the form values
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                waitConfig: { ...waitForm }
+              }
+            }
+          }
+          return node
+        })
+      )
+    }
+    handleWaitModalClose()
+  }
+
   // Auto-layout using Dagre
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleAutoLayout = () => {
@@ -1059,6 +1173,34 @@ function SFCEditor() {
     return () => window.removeEventListener('openSetValueModal', handleOpenModal)
   }, [nodes])
 
+  // Handle Wait modal open event
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const handleOpenWaitModal = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const nodeId = customEvent.detail.nodeId
+      setSelectedNodeId(nodeId)
+
+      // Load existing values from the node if they exist
+      const node = nodes.find((n) => n.id === nodeId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (node?.data && (node.data as any).waitConfig) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setWaitForm((node.data as any).waitConfig)
+      } else {
+        setWaitForm({
+          nodeName: '',
+          waitTime: ''
+        })
+      }
+
+      setShowWaitModal(true)
+    }
+
+    window.addEventListener('openWaitModal', handleOpenWaitModal)
+    return () => window.removeEventListener('openWaitModal', handleOpenWaitModal)
+  }, [nodes])
+
   // Load designs on mount and restore last opened design
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -1149,7 +1291,7 @@ function SFCEditor() {
 
   // Patch node colors for execution status
   const nodesWithStatus = nodes.map((node) => {
-    if (node.type === 'setvalue') {
+    if (node.type === 'setvalue' || node.type === 'wait') {
       return {
         ...node,
         data: {
@@ -1511,6 +1653,42 @@ function SFCEditor() {
               Cancel
             </Button>
             <Button onClick={handleSetValueSubmit}>Save Configuration</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Wait Node Modal */}
+      <Dialog open={showWaitModal} onOpenChange={setShowWaitModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Configure Wait Node</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="waitNodeName">Node Name (optional)</Label>
+              <Input
+                id="waitNodeName"
+                placeholder="e.g., Wait for pump"
+                value={waitForm.nodeName}
+                onChange={(e) => setWaitForm({ ...waitForm, nodeName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="waitTime">Wait Time (seconds) *</Label>
+              <Input
+                id="waitTime"
+                type="number"
+                placeholder="e.g., 5"
+                step="0.1"
+                value={waitForm.waitTime}
+                onChange={(e) => setWaitForm({ ...waitForm, waitTime: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleWaitModalClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleWaitSubmit}>Save Configuration</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
