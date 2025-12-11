@@ -2,13 +2,18 @@ import { useState, useCallback, useEffect } from 'react'
 import confetti from 'canvas-confetti'
 import {
   ReactFlow,
+  Background,
+  MiniMap,
+  Controls,
+  Panel,
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
   useReactFlow,
   ReactFlowProvider,
   Handle,
-  Position
+  Position,
+  BackgroundVariant
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
@@ -31,6 +36,7 @@ import {
 } from '@/components/ui/select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { OPCAutocomplete } from '@/components/opc-autocomplete'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const nodeTypesConfig = [
   {
@@ -184,36 +190,37 @@ const SetValueNode = ({ data, selected }: any) => {
   return (
     <div
       style={{
-        padding: '14px 14px',
-        border: `3px solid ${data.color}`,
+        padding: '16px 18px',
+        border: `2px solid ${data.color}`,
         backgroundColor: data.bgColor,
-        minWidth: '140px',
-        maxWidth: '340px',
-        minHeight: '64px',
+        minWidth: '160px',
+        maxWidth: '360px',
+        minHeight: '80px',
         textAlign: 'left',
         fontWeight: 600,
         fontSize: 13,
         color: '#1f2937',
         boxShadow: selected
-          ? '0 0 0 3px rgba(59, 130, 246, 0.5)'
-          : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        borderRadius: 6,
+          ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 8px 16px rgba(0, 0, 0, 0.15)'
+          : '0 8px 16px rgba(0, 0, 0, 0.1)',
+        borderRadius: 12,
         cursor: 'pointer',
         wordBreak: 'break-all',
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'stretch',
-        gap: 8,
+        gap: 12,
+        transition: 'all 0.2s ease'
       }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="target" position={Position.Left} style={{ background: data.color, width: 20, height: 20, alignSelf: 'center' }} />
+      <Handle type="target" position={Position.Left} style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }} />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ minHeight: 22, fontWeight: 700, color: '#4f46e5', wordBreak: 'break-word', whiteSpace: 'pre-line' }} title={displayText}>
+        <div style={{ minHeight: 24, fontWeight: 700, fontSize: 14, color: '#1f2937', wordBreak: 'break-word', whiteSpace: 'pre-line' }} title={displayText}>
           {formattedDisplayText}
         </div>
         {hasDetails && (
-          <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4, lineHeight: 1.3 }}>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6, lineHeight: 1.4, opacity: 0.85 }}>
             {setValueConfig.type && <span style={{ marginRight: 8 }}>Type: <b>{setValueConfig.type}</b></span>}
             {setValueConfig.startValue !== undefined && setValueConfig.startValue !== '' && (
               <span style={{ marginRight: 8 }}>Start: <b>{setValueConfig.startValue}</b></span>
@@ -229,19 +236,19 @@ const SetValueNode = ({ data, selected }: any) => {
         {elapsedTime !== undefined && (
           <div style={{
             fontSize: 11,
-            marginTop: 4,
+            marginTop: 6,
             fontWeight: 700,
             backgroundColor: data.color,
             color: 'white',
-            padding: '2px 6px',
-            borderRadius: '4px',
+            padding: '3px 8px',
+            borderRadius: '6px',
             display: 'inline-block'
           }}>
             Elapsed: {elapsedTime}s
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Right} style={{ background: data.color, width: 20, height: 20, alignSelf: 'center' }} />
+      <Handle type="source" position={Position.Right} style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }} />
     </div>
   );
 };
@@ -393,6 +400,7 @@ function SFCEditor() {
 
   // Log console for execution messages
   const [executionLogs, setExecutionLogs] = useState<Array<{ time: string, type: 'info' | 'error' | 'success', message: string }>>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const addLog = (type: 'info' | 'error' | 'success', message: string) => {
     const time = new Date().toLocaleTimeString()
@@ -936,6 +944,7 @@ function SFCEditor() {
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const loadInitialData = async () => {
+      setIsLoading(true)
       await loadDesigns()
 
       // Try to load last opened design
@@ -946,6 +955,7 @@ function SFCEditor() {
           await loadDesign(designId)
         }
       }
+      setIsLoading(false)
     }
 
     loadInitialData()
@@ -1042,7 +1052,7 @@ function SFCEditor() {
   })
 
   return (
-    <div className="w-full h-full min-h-0 flex flex-col relative select-none">
+    <div className="w-full h-full min-h-0 flex flex-col relative select-none overflow-hidden">
       {/* Compact toolbar */}
       <div className="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 px-4 py-2 flex items-center gap-3">
         <Button onClick={() => setShowBrowseDesignsDialog(true)} size="sm" variant="outline">
@@ -1065,430 +1075,488 @@ function SFCEditor() {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 flex relative">
-        {/* Main canvas area */}
-        <div
-          className="flex-1 min-h-0"
-          onContextMenu={handleContextMenu}
-          onClick={() => {
-            setContextMenu(null)
-            setNodeContextMenu(null)
-            setEdgeContextMenu(null)
-          }}
-        >
-          <ReactFlow
-            nodes={nodesWithStatus}
-            edges={edgesWithStatus}
-            nodeTypes={customNodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onNodeContextMenu={onNodeContextMenu}
-            onEdgeContextMenu={onEdgeContextMenu}
-            onMove={(_, newViewport) => setViewport(newViewport)}
-            defaultViewport={viewport}
-            defaultEdgeOptions={{
-              animated: true,
-              style: { strokeWidth: 2, stroke: '#94a3b8' },
-              markerEnd: { type: 'arrowclosed' as const }
-            }}
-            style={{ width: '100%', height: '100%' }}
-          />
+      {isLoading ? (
+        /* Loading skeleton */
+        <div className="flex-1 min-h-0 flex relative overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col p-4 gap-4">
+            <div className="flex gap-4">
+              <Skeleton className="h-24 w-48 rounded-xl" />
+              <Skeleton className="h-24 w-48 rounded-xl" />
+              <Skeleton className="h-24 w-48 rounded-xl" />
+            </div>
+            <div className="flex gap-4">
+              <Skeleton className="h-32 w-64 rounded-xl" />
+              <Skeleton className="h-32 w-64 rounded-xl" />
+            </div>
+            <div className="flex gap-4">
+              <Skeleton className="h-24 w-56 rounded-xl" />
+              <Skeleton className="h-24 w-56 rounded-xl" />
+              <Skeleton className="h-24 w-56 rounded-xl" />
+            </div>
+            <Skeleton className="h-20 w-full rounded-lg mt-auto" />
+          </div>
+          <div className="w-64 border-l border-gray-300 dark:border-gray-700 p-4 space-y-3">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-20 w-full rounded-lg" />
+          </div>
         </div>
-        {/* Right pane with draggable nodes - with external collapse button */}
-        <div className="relative flex">
-          {/* Collapse/Expand Button - Vertical on left side */}
-          <button
-            onClick={() => setNodeTypesPanelCollapsed(!nodeTypesPanelCollapsed)}
-            className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-gray-200 dark:bg-gray-800 rounded-full px-1 py-2 text-xs shadow border border-gray-300 dark:border-gray-700"
-            aria-label={nodeTypesPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
-            style={{ zIndex: 41 }}
-          >
-            <span
-              className={`inline-block transition-transform rotate-90`}
+      ) : (
+        <div className="flex-1 min-h-0 flex relative overflow-hidden">
+          {/* Main canvas area */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div
+              className="flex-1 min-h-0"
+              onContextMenu={handleContextMenu}
+              onClick={() => {
+                setContextMenu(null)
+                setNodeContextMenu(null)
+                setEdgeContextMenu(null)
+              }}
             >
-              {nodeTypesPanelCollapsed ? '▼' : '▲'}
-            </span>
-          </button>
+              <ReactFlow
+                nodes={nodesWithStatus}
+                edges={edgesWithStatus}
+                nodeTypes={customNodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onNodeContextMenu={onNodeContextMenu}
+                onEdgeContextMenu={onEdgeContextMenu}
+                onMove={(_, newViewport) => setViewport(newViewport)}
+                defaultViewport={viewport}
+                defaultEdgeOptions={{
+                  animated: true,
+                  style: { strokeWidth: 2, stroke: '#94a3b8' },
+                  markerEnd: { type: 'arrowclosed' as const }
+                }}
+                style={{ width: '100%', height: '100%' }}
+                fitView
+              >
+                <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+                <Controls
+                  showZoom={true}
+                  showFitView={true}
+                  showInteractive={true}
+                  position="bottom-left"
+                />
+                <MiniMap
+                  nodeStrokeWidth={3}
+                  zoomable
+                  pannable
+                  position="bottom-right"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid #e5e7eb'
+                  }}
+                  className="dark:bg-gray-800/90 dark:border-gray-700"
+                />
+                <Panel position="top-left" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
+                    <div className="font-semibold mb-1">Controls:</div>
+                    <div>• Drag nodes to reposition</div>
+                    <div>• Right-click for context menu</div>
+                    <div>• Use controls to zoom/fit view</div>
+                  </div>
+                </Panel>
+              </ReactFlow>
+            </div>
+            {/* BottomBar for simulation control - at bottom of left column */}
+            <BottomBar
+              onStart={handleStart}
+              onPause={handlePause}
+              onStop={handleStop}
+              onReset={handleReset}
+              isRunning={isRunning}
+              isPaused={isPaused}
+              executionLogs={executionLogs}
+              onClearLogs={() => setExecutionLogs([])}
+            />
+          </div>
+          {/* Right pane with draggable nodes - with external collapse button */}
+          <div className="relative flex">
+            {/* Collapse/Expand Button - Vertical on left side */}
+            <button
+              onClick={() => setNodeTypesPanelCollapsed(!nodeTypesPanelCollapsed)}
+              className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-gray-200 dark:bg-gray-800 rounded-full px-1 py-2 text-xs shadow border border-gray-300 dark:border-gray-700"
+              aria-label={nodeTypesPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
+              style={{ zIndex: 41 }}
+            >
+              <span className={`inline-block transition-transform rotate-90`}>
+                {nodeTypesPanelCollapsed ? '▼' : '▲'}
+              </span>
+            </button>
 
-          <div
-            className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 overflow-y-auto transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-0' : 'w-64'
-              }`}
-          >
-            {!nodeTypesPanelCollapsed && (
-              <div className="p-4">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                  Node Types
-                </h3>
-                <div className="space-y-3">
-                  {nodeTypesConfig
-                    .filter((nodeType) => nodeType.type !== 'start' && nodeType.type !== 'end')
-                    .map((nodeType) => (
-                      <div
-                        key={nodeType.type}
-                        draggable
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData('application/reactflow', nodeType.label)
-                          event.dataTransfer.effectAllowed = 'move'
-                        }}
-                        className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
-                        style={{
-                          borderColor: nodeType.color,
-                          backgroundColor: nodeType.bgColor
-                        }}
-                      >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div
-                            className="w-8 h-8 rounded"
-                            style={{
-                              backgroundColor: nodeType.color,
-                              ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
-                              ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
-                              ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
-                            }}
-                          />
-                          <span
-                            className="font-medium text-gray-900"
-                            style={{ color: nodeType.color }}
-                          >
-                            {nodeType.label}
-                          </span>
+            <div
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
+                }`}
+            >
+              {!nodeTypesPanelCollapsed && (
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                    Node Types
+                  </h3>
+                  <div className="space-y-3">
+                    {nodeTypesConfig
+                      .filter((nodeType) => nodeType.type !== 'start' && nodeType.type !== 'end')
+                      .map((nodeType) => (
+                        <div
+                          key={nodeType.type}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData('application/reactflow', nodeType.label)
+                            event.dataTransfer.effectAllowed = 'move'
+                          }}
+                          className="cursor-grab active:cursor-grabbing border-2 rounded-lg p-3 hover:shadow-lg transition-all transform hover:scale-105"
+                          style={{
+                            borderColor: nodeType.color,
+                            backgroundColor: nodeType.bgColor
+                          }}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div
+                              className="w-8 h-8 rounded"
+                              style={{
+                                backgroundColor: nodeType.color,
+                                ...(nodeType.shape === 'diamond' && { transform: 'rotate(45deg)' }),
+                                ...(nodeType.shape === 'circle' && { borderRadius: '50%' }),
+                                ...(nodeType.shape === 'rounded' && { borderRadius: '8px' })
+                              }}
+                            />
+                            <span
+                              className="font-medium text-gray-900"
+                              style={{ color: nodeType.color }}
+                            >
+                              {nodeType.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-700">{nodeType.description}</p>
                         </div>
-                        <p className="text-xs text-gray-700">{nodeType.description}</p>
-                      </div>
-                    ))}
-                </div>
-                <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for
-                    more options.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Canvas context menu */}
-        {contextMenu && copiedNode && (
-          <div
-            className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
-            style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-          >
-            <button
-              onClick={() => pasteNode()}
-              className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
-            >
-              Paste Node
-            </button>
-          </div>
-        )}
-        {nodeContextMenu && (
-          <div
-            className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
-            style={{ top: `${nodeContextMenu.y}px`, left: `${nodeContextMenu.x}px` }}
-          >
-            {(() => {
-              const node = nodes.find((n) => n.id === nodeContextMenu.nodeId)
-              const canCopy = node && node.type !== 'start' && node.type !== 'end'
-              const canDelete = node && node.type !== 'start' && node.type !== 'end'
-              return (
-                <>
-                  {canCopy && (
-                    <button
-                      onClick={() => copyNode(nodeContextMenu.nodeId)}
-                      className="block w-full text-left px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm text-blue-600 dark:text-blue-400"
-                    >
-                      Copy Node
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      onClick={() => deleteNode(nodeContextMenu.nodeId)}
-                      className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
-                    >
-                      Delete Node
-                    </button>
-                  )}
-                </>
-              )
-            })()}
-          </div>
-        )}
-        {edgeContextMenu && (
-          <div
-            className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
-            style={{ top: `${edgeContextMenu.y}px`, left: `${edgeContextMenu.x}px` }}
-          >
-            <button
-              onClick={() => deleteEdge(edgeContextMenu.edgeId)}
-              className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
-            >
-              Delete Connection
-            </button>
-          </div>
-        )}
-        {/* Set Value Modal */}
-        <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Configure Set Value Node</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {/* Type Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="type">Value Type</Label>
-                <Select
-                  value={setValueForm.type}
-                  onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="float">Float</SelectItem>
-                    <SelectItem value="bool">Boolean</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* OPC Node */}
-              <div className="space-y-2">
-                <Label htmlFor="opcNode">OPC Node</Label>
-                <OPCAutocomplete
-                  id="opcNode"
-                  value={setValueForm.opcNode}
-                  onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
-                  placeholder="e.g., ns=2;s=Variable1"
-                />
-              </div>
-
-              {/* Start Value */}
-              <div className="space-y-2">
-                <Label htmlFor="startValue">Start Value</Label>
-                <Input
-                  id="startValue"
-                  placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
-                  value={setValueForm.startValue}
-                  onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
-                />
-              </div>
-
-              {/* End Value */}
-              <div className="space-y-2">
-                <Label htmlFor="endValue">End Value</Label>
-                <Input
-                  id="endValue"
-                  placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
-                  value={setValueForm.endValue}
-                  onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
-                />
-              </div>
-
-              {/* Time */}
-              <div className="space-y-2">
-                <Label htmlFor="time">Time (seconds)</Label>
-                <Input
-                  id="time"
-                  type="number"
-                  placeholder="e.g., 10"
-                  value={setValueForm.time}
-                  onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={handleSetValueModalClose}>
-                Cancel
-              </Button>
-              <Button onClick={handleSetValueSubmit}>Save Configuration</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* New Design Dialog */}
-        <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Create New SFC Design</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="designName">Design Name</Label>
-                <Input
-                  id="designName"
-                  placeholder="My SFC Design"
-                  value={newDesignName}
-                  onChange={(e) => setNewDesignName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="designDescription">Description (optional)</Label>
-                <Input
-                  id="designDescription"
-                  placeholder="Description of the design"
-                  value={newDesignDescription}
-                  onChange={(e) => setNewDesignDescription(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowNewDesignDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={createNewDesign}>Create</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Browse Designs Dialog */}
-        <Dialog open={showBrowseDesignsDialog} onOpenChange={setShowBrowseDesignsDialog}>
-          <DialogContent className="sm:max-w-[700px] max-h-[600px]">
-            <DialogHeader>
-              <DialogTitle>Open SFC Design</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              {designs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <p>No designs found. Create a new design to get started.</p>
-                </div>
-              ) : (
-                <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 dark:bg-gray-900">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Description
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Updated
-                        </th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-slate-950 divide-y divide-gray-200 dark:divide-gray-700">
-                      {designs.map((design) => (
-                        <tr key={design.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {design.name}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                            {design.description || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                            {new Date(design.updated_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right space-x-2">
-                            <Button
-                              onClick={() => loadDesign(design.id)}
-                              size="sm"
-                              variant="default"
-                            >
-                              Open
-                            </Button>
-                            <Button
-                              onClick={() => deleteDesign(design.id)}
-                              size="sm"
-                              variant="destructive"
-                            >
-                              Delete
-                            </Button>
-                          </td>
-                        </tr>
                       ))}
-                    </tbody>
-                  </table>
+                  </div>
+                  <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-800 dark:text-blue-300">
+                      <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for
+                      more options.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowBrowseDesignsDialog(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Save Success Alert */}
-        {showSaveSuccessDialog && (
-          <div className="fixed top-4 right-4 z-50 w-96 animate-in slide-in-from-top-5">
-            <Alert variant="success">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="h-4 w-4"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <AlertTitle>Success</AlertTitle>
-              <AlertDescription>Design saved successfully!</AlertDescription>
-            </Alert>
           </div>
-        )}{' '}
-        {/* Error Dialog */}
-        <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Error</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setShowErrorDialog(false)}>OK</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Confirm Delete</DialogTitle>
-            </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Are you sure you want to delete this design? This action cannot be undone.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteConfirmDialog(false)
-                  setDesignToDelete(null)
-                }}
+        </div>
+      )}
+
+      {/* Canvas context menu */}
+      {contextMenu && copiedNode && (
+        <div
+          className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+        >
+          <button
+            onClick={() => pasteNode()}
+            className="block w-full text-left px-4 py-2 hover:bg-green-100 dark:hover:bg-green-900/30 text-sm text-green-600 dark:text-green-400"
+          >
+            Paste Node
+          </button>
+        </div>
+      )}
+      {nodeContextMenu && (
+        <div
+          className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+          style={{ top: `${nodeContextMenu.y}px`, left: `${nodeContextMenu.x}px` }}
+        >
+          {(() => {
+            const node = nodes.find((n) => n.id === nodeContextMenu.nodeId)
+            const canCopy = node && node.type !== 'start' && node.type !== 'end'
+            const canDelete = node && node.type !== 'start' && node.type !== 'end'
+            return (
+              <>
+                {canCopy && (
+                  <button
+                    onClick={() => copyNode(nodeContextMenu.nodeId)}
+                    className="block w-full text-left px-4 py-2 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-sm text-blue-600 dark:text-blue-400"
+                  >
+                    Copy Node
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    onClick={() => deleteNode(nodeContextMenu.nodeId)}
+                    className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
+                  >
+                    Delete Node
+                  </button>
+                )}
+              </>
+            )
+          })()}
+        </div>
+      )}
+      {edgeContextMenu && (
+        <div
+          className="fixed bg-white dark:bg-slate-950 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50"
+          style={{ top: `${edgeContextMenu.y}px`, left: `${edgeContextMenu.x}px` }}
+        >
+          <button
+            onClick={() => deleteEdge(edgeContextMenu.edgeId)}
+            className="block w-full text-left px-4 py-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-sm text-red-600 dark:text-red-400"
+          >
+            Delete Connection
+          </button>
+        </div>
+      )}
+      {/* Set Value Modal */}
+      <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Configure Set Value Node</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="type">Value Type</Label>
+              <Select
+                value={setValueForm.type}
+                onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}
               >
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmDeleteDesign}>
-                Delete
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      {/* BottomBar for simulation control */}
-      <BottomBar
-        onStart={handleStart}
-        onPause={handlePause}
-        onStop={handleStop}
-        onReset={handleReset}
-        isRunning={isRunning}
-        isPaused={isPaused}
-        executionLogs={executionLogs}
-        onClearLogs={() => setExecutionLogs([])}
-      />
+                <SelectTrigger id="type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="float">Float</SelectItem>
+                  <SelectItem value="bool">Boolean</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* OPC Node */}
+            <div className="space-y-2">
+              <Label htmlFor="opcNode">OPC Node</Label>
+              <OPCAutocomplete
+                id="opcNode"
+                value={setValueForm.opcNode}
+                onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
+                placeholder="e.g., ns=2;s=Variable1"
+              />
+            </div>
+
+            {/* Start Value */}
+            <div className="space-y-2">
+              <Label htmlFor="startValue">Start Value</Label>
+              <Input
+                id="startValue"
+                placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
+                value={setValueForm.startValue}
+                onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
+              />
+            </div>
+
+            {/* End Value */}
+            <div className="space-y-2">
+              <Label htmlFor="endValue">End Value</Label>
+              <Input
+                id="endValue"
+                placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
+                value={setValueForm.endValue}
+                onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
+              />
+            </div>
+
+            {/* Time */}
+            <div className="space-y-2">
+              <Label htmlFor="time">Time (seconds)</Label>
+              <Input
+                id="time"
+                type="number"
+                placeholder="e.g., 10"
+                value={setValueForm.time}
+                onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleSetValueModalClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetValueSubmit}>Save Configuration</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* New Design Dialog */}
+      <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Create New SFC Design</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="designName">Design Name</Label>
+              <Input
+                id="designName"
+                placeholder="My SFC Design"
+                value={newDesignName}
+                onChange={(e) => setNewDesignName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="designDescription">Description (optional)</Label>
+              <Input
+                id="designDescription"
+                placeholder="Description of the design"
+                value={newDesignDescription}
+                onChange={(e) => setNewDesignDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewDesignDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={createNewDesign}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Browse Designs Dialog */}
+      <Dialog open={showBrowseDesignsDialog} onOpenChange={setShowBrowseDesignsDialog}>
+        <DialogContent className="sm:max-w-[700px] max-h-[600px]">
+          <DialogHeader>
+            <DialogTitle>Open SFC Design</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            {designs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No designs found. Create a new design to get started.</p>
+              </div>
+            ) : (
+              <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Updated
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-slate-950 divide-y divide-gray-200 dark:divide-gray-700">
+                    {designs.map((design) => (
+                      <tr key={design.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {design.name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          {design.description || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(design.updated_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right space-x-2">
+                          <Button
+                            onClick={() => loadDesign(design.id)}
+                            size="sm"
+                            variant="default"
+                          >
+                            Open
+                          </Button>
+                          <Button
+                            onClick={() => deleteDesign(design.id)}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            Delete
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBrowseDesignsDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Save Success Alert */}
+      {showSaveSuccessDialog && (
+        <div className="fixed top-4 right-4 z-50 w-96 animate-in slide-in-from-top-5">
+          <Alert variant="success">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="h-4 w-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>Design saved successfully!</AlertDescription>
+          </Alert>
+        </div>
+      )}{' '}
+      {/* Error Dialog */}
+      <Dialog open={showErrorDialog} onOpenChange={setShowErrorDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowErrorDialog(false)}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Are you sure you want to delete this design? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteConfirmDialog(false)
+                setDesignToDelete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteDesign}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

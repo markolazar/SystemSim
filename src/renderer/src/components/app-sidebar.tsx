@@ -1,5 +1,5 @@
 import * as React from "react"
-import { GalleryVerticalEnd } from "lucide-react"
+import { GalleryVerticalEnd, Settings } from "lucide-react"
 
 import {
     Sidebar,
@@ -9,11 +9,16 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
     SidebarRail,
 } from "@/components/ui/sidebar"
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const [configOpen, setConfigOpen] = React.useState(true)
+
     const handleNavigate = (page: string) => {
         const event = new CustomEvent('navigate', { detail: { page } })
         window.dispatchEvent(event)
@@ -41,24 +46,52 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarContent>
                 <SidebarGroup>
                     <SidebarMenu>
-                        {[
-                            { title: "OPC Server", page: "opc-server" },
-                            { title: "OPC Nodes", page: "opc-nodes" },
-                            { title: "SFC Designer", page: "dashboard" },
-                            { title: "Simulation Control", page: "#" },
-                            { title: "Report / Historian", page: "#" },
-                        ].map((item) => (
-                            <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton asChild>
-                                    <button
-                                        onClick={() => handleNavigate(item.page)}
-                                        className="font-medium w-full text-left"
-                                    >
-                                        {item.title}
-                                    </button>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                onClick={() => setConfigOpen(!configOpen)}
+                                className="font-medium"
+                            >
+                                <Settings className="mr-2 h-4 w-4" />
+                                Configuration
+                                <span className={`ml-auto text-lg transition-transform ${configOpen ? 'rotate-90' : ''}`}>›</span>
+                            </SidebarMenuButton>
+                            {configOpen && (
+                                <SidebarMenuSub>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("opc-server")}
+                                                className="w-full text-left"
+                                            >
+                                                OPC Server
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("opc-nodes")}
+                                                className="w-full text-left"
+                                            >
+                                                OPC Nodes
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                </SidebarMenuSub>
+                            )}
+                        </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild>
+                                <button
+                                    onClick={() => handleNavigate("dashboard")}
+                                    className="font-medium w-full text-left"
+                                >
+                                    <span className="mr-2">🎨</span>
+                                    SFC Designer
+                                </button>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarGroup>
             </SidebarContent>

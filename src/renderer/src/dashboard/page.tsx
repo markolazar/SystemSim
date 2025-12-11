@@ -44,7 +44,7 @@ export default function Page() {
                     </div>
                 </header>
 
-                <main className="flex-1 min-h-0 p-4">
+                <main className="flex-1 min-h-0">
                     <SFC />
                 </main>
             </SidebarInset>

@@ -32,7 +32,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
 
     return (
         <div
-            className={`fixed bottom-0 left-0 w-full z-40 transition-all duration-300 ${collapsed ? 'h-8' : 'h-20'} bg-white dark:bg-slate-950 border-t border-gray-300 dark:border-gray-700 flex items-center px-4`}
+            className={`relative transition-all duration-300 ${collapsed ? 'h-8' : 'h-20'} bg-white dark:bg-slate-950 border-t border-gray-300 dark:border-gray-700 flex items-center px-4`}
             style={{ boxShadow: '0 -2px 8px rgba(0,0,0,0.04)' }}
         >
             <button

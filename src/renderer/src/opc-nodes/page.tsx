@@ -45,6 +45,7 @@ export default function OPCNodesPage() {
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
     const [pageSize, setPageSize] = useState(25)
     const [page, setPage] = useState(1)
+    const [childListHeight, setChildListHeight] = useState(384) // Default 384px (max-h-96)
 
     const backendPort = import.meta.env.VITE_BACKEND_PORT
 
@@ -303,38 +304,58 @@ export default function OPCNodesPage() {
                                     ) : children.length === 0 ? (
                                         <p className="text-sm text-muted-foreground">No child nodes found under this prefix.</p>
                                     ) : (
-                                        <div className="space-y-2 border rounded p-3 max-h-48 overflow-auto">
-                                            <div className="flex items-center gap-2 text-sm">
-                                                <button
-                                                    type="button"
-                                                    onClick={selectAllChildren}
-                                                    className="rounded border px-2 py-1 hover:bg-muted"
-                                                >
-                                                    Select all
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={clearSelection}
-                                                    className="rounded border px-2 py-1 hover:bg-muted"
-                                                >
-                                                    Clear
-                                                </button>
-                                                <span className="text-muted-foreground">
-                                                    {selectedChildIds.length}/{children.length} selected
-                                                </span>
+                                        <div className="relative">
+                                            <div
+                                                className="space-y-2 border rounded p-3 overflow-auto resize-y"
+                                                style={{
+                                                    height: `${childListHeight}px`,
+                                                    minHeight: '192px',
+                                                    maxHeight: '800px'
+                                                }}
+                                                onMouseUp={(e) => {
+                                                    const newHeight = (e.target as HTMLElement).offsetHeight
+                                                    if (newHeight !== childListHeight) {
+                                                        setChildListHeight(newHeight)
+                                                    }
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-2 text-sm sticky top-0 bg-background pb-2 border-b">
+                                                    <button
+                                                        type="button"
+                                                        onClick={selectAllChildren}
+                                                        className="rounded border px-2 py-1 hover:bg-muted"
+                                                    >
+                                                        Select all
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={clearSelection}
+                                                        className="rounded border px-2 py-1 hover:bg-muted"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                    <span className="text-muted-foreground">
+                                                        {selectedChildIds.length}/{children.length} selected
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-1 pt-2">
+                                                    {children.map((child) => (
+                                                        <label key={child.node_id} className="flex items-center gap-2 text-sm">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedChildIds.includes(child.node_id)}
+                                                                onChange={() => toggleChild(child.node_id)}
+                                                            />
+                                                            <span className="font-mono text-xs break-all">{child.node_id}</span>
+                                                            <span className="text-muted-foreground">{child.browse_name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                {children.map((child) => (
-                                                    <label key={child.node_id} className="flex items-center gap-2 text-sm">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedChildIds.includes(child.node_id)}
-                                                            onChange={() => toggleChild(child.node_id)}
-                                                        />
-                                                        <span className="font-mono text-xs break-all">{child.node_id}</span>
-                                                        <span className="text-muted-foreground">{child.browse_name}</span>
-                                                    </label>
-                                                ))}
+                                            <div className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize opacity-50 pointer-events-none">
+                                                <svg className="w-full h-full" viewBox="0 0 16 16">
+                                                    <path d="M16 16L16 12L12 16Z M16 8L8 16Z M16 4L4 16Z" fill="currentColor" />
+                                                </svg>
                                             </div>
                                         </div>
                                     )}
