@@ -105,7 +105,11 @@ const StartNode = ({ data, selected }: any) => (
     }}
   >
     {data.label}
-    <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
+    <Handle
+      type="source"
+      position={Position.Right}
+      style={{ background: data.color, width: '20px', height: '20px' }}
+    />
   </div>
 )
 
@@ -163,28 +167,30 @@ const ConditionNode = ({ data, selected }: any) => (
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const SetValueNode = ({ data, selected }: any) => {
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } });
-    window.dispatchEvent(event);
-  };
+    e.stopPropagation()
+    const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } })
+    window.dispatchEvent(event)
+  }
 
   // Display OPC node if configured, otherwise show default label
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setValueConfig = (data as any).setValueConfig || {};
-  const displayText = setValueConfig.opcNode || data.label;
+  const setValueConfig = (data as any).setValueConfig || {}
+  const displayText = setValueConfig.opcNode || data.label
   // Replace dots with newlines for better visibility
-  const formattedDisplayText = displayText.replace(/\./g, '\n');
+  const formattedDisplayText = displayText.replace(/\./g, '\n')
 
   // Show start/end value and time if available
-  const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time;
-  const elapsedTime = (data as any).elapsedTime;
+  const hasDetails = setValueConfig.startValue || setValueConfig.endValue || setValueConfig.time
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elapsedTime = (data as any).elapsedTime
 
   // Debug logging
   if (elapsedTime !== undefined) {
-    console.log('Node has elapsedTime:', elapsedTime, 'for node:', data.nodeId);
+    console.log('Node has elapsedTime:', elapsedTime, 'for node:', data.nodeId)
   }
 
   return (
@@ -214,44 +220,84 @@ const SetValueNode = ({ data, selected }: any) => {
       }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="target" position={Position.Left} style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }} />
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ minHeight: 24, fontWeight: 700, fontSize: 14, color: '#1f2937', wordBreak: 'break-word', whiteSpace: 'pre-line' }} title={displayText}>
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}
+      >
+        <div
+          style={{
+            minHeight: 24,
+            fontWeight: 700,
+            fontSize: 14,
+            color: '#1f2937',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-line'
+          }}
+          title={displayText}
+        >
           {formattedDisplayText}
         </div>
         {hasDetails && (
-          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6, lineHeight: 1.4, opacity: 0.85 }}>
-            {setValueConfig.type && <span style={{ marginRight: 8 }}>Type: <b>{setValueConfig.type}</b></span>}
+          <div
+            style={{ fontSize: 11, color: '#6b7280', marginTop: 6, lineHeight: 1.4, opacity: 0.85 }}
+          >
+            {setValueConfig.type && (
+              <span style={{ marginRight: 8 }}>
+                Type: <b>{setValueConfig.type}</b>
+              </span>
+            )}
             {setValueConfig.startValue !== undefined && setValueConfig.startValue !== '' && (
-              <span style={{ marginRight: 8 }}>Start: <b>{setValueConfig.startValue}</b></span>
+              <span style={{ marginRight: 8 }}>
+                Start: <b>{setValueConfig.startValue}</b>
+              </span>
             )}
             {setValueConfig.endValue !== undefined && setValueConfig.endValue !== '' && (
-              <span style={{ marginRight: 8 }}>End: <b>{setValueConfig.endValue}</b></span>
+              <span style={{ marginRight: 8 }}>
+                End: <b>{setValueConfig.endValue}</b>
+              </span>
             )}
             {setValueConfig.time !== undefined && setValueConfig.time !== '' && (
-              <span>Time: <b>{setValueConfig.time}s</b></span>
+              <span>
+                Time: <b>{setValueConfig.time}s</b>
+              </span>
             )}
           </div>
         )}
         {elapsedTime !== undefined && (
-          <div style={{
-            fontSize: 11,
-            marginTop: 6,
-            fontWeight: 700,
-            backgroundColor: data.color,
-            color: 'white',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            display: 'inline-block'
-          }}>
+          <div
+            style={{
+              fontSize: 11,
+              marginTop: 6,
+              fontWeight: 700,
+              backgroundColor: data.color,
+              color: 'white',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              display: 'inline-block'
+            }}
+          >
             Elapsed: {elapsedTime}s
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Right} style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
     </div>
-  );
-};
+  )
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const WaitNode = ({ data, selected }: any) => (
@@ -275,9 +321,17 @@ const WaitNode = ({ data, selected }: any) => (
       padding: '8px'
     }}
   >
-    <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
+    <Handle
+      type="target"
+      position={Position.Left}
+      style={{ background: data.color, width: '20px', height: '20px' }}
+    />
     {data.label}
-    <Handle type="source" position={Position.Right} style={{ background: data.color, width: '20px', height: '20px' }} />
+    <Handle
+      type="source"
+      position={Position.Right}
+      style={{ background: data.color, width: '20px', height: '20px' }}
+    />
   </div>
 )
 
@@ -303,7 +357,11 @@ const EndNode = ({ data, selected }: any) => (
       padding: '8px'
     }}
   >
-    <Handle type="target" position={Position.Left} style={{ background: data.color, width: '20px', height: '20px' }} />
+    <Handle
+      type="target"
+      position={Position.Left}
+      style={{ background: data.color, width: '20px', height: '20px' }}
+    />
     {data.label}
   </div>
 )
@@ -399,22 +457,28 @@ function SFCEditor() {
   const [isPaused, setIsPaused] = useState(false)
 
   // Log console for execution messages
-  const [executionLogs, setExecutionLogs] = useState<Array<{ time: string, type: 'info' | 'error' | 'success', message: string }>>([])
+  const [executionLogs, setExecutionLogs] = useState<
+    Array<{ time: string; type: 'info' | 'error' | 'success'; message: string }>
+  >([])
   const [isLoading, setIsLoading] = useState(true)
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const addLog = (type: 'info' | 'error' | 'success', message: string) => {
     const time = new Date().toLocaleTimeString()
-    setExecutionLogs(prev => [...prev, { time, type, message }])
+    setExecutionLogs((prev) => [...prev, { time, type, message }])
   }
 
   // Set Value modal state
   // Node execution status state
-  const [nodeStatus, setNodeStatus] = useState<{ [nodeId: string]: { status: 'idle' | 'running' | 'finished' | 'error', elapsedTime?: number } }>({})
+  const [nodeStatus, setNodeStatus] = useState<{
+    [nodeId: string]: { status: 'idle' | 'running' | 'finished' | 'error'; elapsedTime?: number }
+  }>({})
   const pollingIntervalRef = useState<{ id: NodeJS.Timeout | null }>({ id: null })[0]
 
   // Simulation control handlers
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleStart = async () => {
-    if (!currentDesignId) return;
+    if (!currentDesignId) return
 
     // Auto-reset before starting
     setIsRunning(false)
@@ -427,7 +491,7 @@ function SFCEditor() {
     }
 
     // Auto-save before starting execution
-    await saveCurrentDesign();
+    await saveCurrentDesign()
 
     addLog('info', 'Starting SFC execution...')
     setIsRunning(true)
@@ -436,11 +500,14 @@ function SFCEditor() {
     const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
 
     // Start backend execution
-    const response = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    })
+    const response = await fetch(
+      `http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/execute`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      }
+    )
 
     if (!response.ok) {
       addLog('error', 'Failed to start SFC execution')
@@ -455,13 +522,16 @@ function SFCEditor() {
 
     const pollInterval = setInterval(async () => {
       try {
-        const statusResponse = await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/status`)
+        const statusResponse = await fetch(
+          `http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/status`
+        )
         const statusData = await statusResponse.json()
 
         if (statusData.status && statusData.status.nodes) {
           // Update node statuses
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           Object.entries(statusData.status.nodes).forEach(([nodeId, nodeStatus]: [string, any]) => {
-            setNodeStatus(prev => ({
+            setNodeStatus((prev) => ({
               ...prev,
               [nodeId]: {
                 status: nodeStatus.status,
@@ -476,12 +546,16 @@ function SFCEditor() {
 
         // Check if all nodes are finished
         const nodeStatuses = statusData.status?.nodes || {}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const allFinished = Object.values(nodeStatuses).every((status: any) => {
           return status.status === 'finished' || status.status === 'error'
         })
 
         if (allFinished && Object.keys(nodeStatuses).length > 0) {
-          const hasErrors = Object.values(nodeStatuses).some((status: any) => status.status === 'error')
+          const hasErrors = Object.values(nodeStatuses).some(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (status: any) => status.status === 'error'
+          )
           if (hasErrors) {
             addLog('error', 'Execution completed with errors')
           } else {
@@ -503,10 +577,12 @@ function SFCEditor() {
 
     pollingIntervalRef.id = pollInterval
   }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handlePause = () => {
     setIsPaused(true)
     // (Pause not implemented in backend yet)
   }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleStop = () => {
     setIsRunning(false)
     setIsPaused(false)
@@ -516,6 +592,7 @@ function SFCEditor() {
       pollingIntervalRef.id = null
     }
   }
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleReset = () => {
     setIsRunning(false)
     setIsPaused(false)
@@ -588,45 +665,51 @@ function SFCEditor() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const copyNode = useCallback((nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId)
-    if (node && node.type !== 'start' && node.type !== 'end') {
-      setCopiedNode(node)
-    }
-    setNodeContextMenu(null)
-  }, [nodes])
+  const copyNode = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId)
+      if (node && node.type !== 'start' && node.type !== 'end') {
+        setCopiedNode(node)
+      }
+      setNodeContextMenu(null)
+    },
+    [nodes]
+  )
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const pasteNode = useCallback((position?: { x: number; y: number }) => {
-    if (!copiedNode) return
+  const pasteNode = useCallback(
+    (position?: { x: number; y: number }) => {
+      if (!copiedNode) return
 
-    let pastePosition
-    if (position) {
-      pastePosition = position
-    } else if (contextMenu) {
-      pastePosition = reactFlowInstance.screenToFlowPosition({
-        x: contextMenu.x,
-        y: contextMenu.y
-      })
-    } else {
-      // Paste at center of viewport when using keyboard shortcut
-      pastePosition = reactFlowInstance.screenToFlowPosition({
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2
-      })
-    }
+      let pastePosition
+      if (position) {
+        pastePosition = position
+      } else if (contextMenu) {
+        pastePosition = reactFlowInstance.screenToFlowPosition({
+          x: contextMenu.x,
+          y: contextMenu.y
+        })
+      } else {
+        // Paste at center of viewport when using keyboard shortcut
+        pastePosition = reactFlowInstance.screenToFlowPosition({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2
+        })
+      }
 
-    const nodeId = `n${nextNodeId}`
-    const newNode = {
-      ...copiedNode,
-      id: nodeId,
-      position: pastePosition,
-      data: { ...copiedNode.data, nodeId }
-    }
-    setNodes([...nodes, newNode])
-    setNextNodeId(nextNodeId + 1)
-    setContextMenu(null)
-  }, [copiedNode, contextMenu, nextNodeId, nodes, reactFlowInstance])
+      const nodeId = `n${nextNodeId}`
+      const newNode = {
+        ...copiedNode,
+        id: nodeId,
+        position: pastePosition,
+        data: { ...copiedNode.data, nodeId }
+      }
+      setNodes([...nodes, newNode])
+      setNextNodeId(nextNodeId + 1)
+      setContextMenu(null)
+    },
+    [copiedNode, contextMenu, nextNodeId, nodes, reactFlowInstance]
+  )
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleSetValueModalClose = () => {
@@ -997,6 +1080,7 @@ function SFCEditor() {
   }, [currentDesignId, nodes, edges, copiedNode, saveCurrentDesign, copyNode, pasteNode])
 
   // Color mapping for node status
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
   const getNodeColor = (node: any) => {
     const status = nodeStatus[node.id]?.status
     if (status === 'running') return '#fde047' // yellow
@@ -1006,9 +1090,10 @@ function SFCEditor() {
   }
 
   // Color mapping for edge status based on source node
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
   const getEdgeColor = (edge: any) => {
-    const sourceNode = nodes.find(n => n.id === edge.source)
-    const targetNode = nodes.find(n => n.id === edge.target)
+    const sourceNode = nodes.find((n) => n.id === edge.source)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sourceStatus = nodeStatus[edge.source]?.status
     const targetStatus = nodeStatus[edge.target]?.status
 
@@ -1074,7 +1159,6 @@ function SFCEditor() {
           </div>
         )}
       </div>
-
       {isLoading ? (
         /* Loading skeleton */
         <div className="flex-1 min-h-0 flex relative overflow-hidden">
@@ -1154,7 +1238,10 @@ function SFCEditor() {
                   }}
                   className="dark:bg-gray-800/90 dark:border-gray-700"
                 />
-                <Panel position="top-left" className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+                <Panel
+                  position="top-left"
+                  className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 py-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+                >
                   <div className="text-xs text-gray-600 dark:text-gray-300">
                     <div className="font-semibold mb-1">Controls:</div>
                     <div>• Drag nodes to reposition</div>
@@ -1191,8 +1278,9 @@ function SFCEditor() {
             </button>
 
             <div
-              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
-                }`}
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${
+                nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-64 overflow-y-auto'
+              }`}
             >
               {!nodeTypesPanelCollapsed && (
                 <div className="p-4">
@@ -1239,8 +1327,8 @@ function SFCEditor() {
                   </div>
                   <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-xs text-blue-800 dark:text-blue-300">
-                      <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click for
-                      more options.
+                      <strong>Tip:</strong> Drag and drop node types onto the canvas or right-click
+                      for more options.
                     </p>
                   </div>
                 </div>
@@ -1249,7 +1337,6 @@ function SFCEditor() {
           </div>
         </div>
       )}
-
       {/* Canvas context menu */}
       {contextMenu && copiedNode && (
         <div
@@ -1464,11 +1551,7 @@ function SFCEditor() {
                           {new Date(design.updated_at).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-3 text-sm text-right space-x-2">
-                          <Button
-                            onClick={() => loadDesign(design.id)}
-                            size="sm"
-                            variant="default"
-                          >
+                          <Button onClick={() => loadDesign(design.id)} size="sm" variant="default">
                             Open
                           </Button>
                           <Button
