@@ -242,7 +242,8 @@ async def execute_sfc(
             can_run = [
                 nid
                 for nid in pending
-                if all(src in finished for src in incoming[nid]) and nid not in active_tasks
+                if all(src in finished for src in incoming[nid])
+                and nid not in active_tasks
             ]
 
             if iteration % 20 == 0:  # Only print every 20 iterations to reduce spam
