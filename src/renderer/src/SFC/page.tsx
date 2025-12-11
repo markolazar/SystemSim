@@ -1098,15 +1098,19 @@ function SFCEditor() {
           />
         </div>
         {/* Right pane with draggable nodes - with external collapse button */}
-        <div className="relative">
-          {/* Collapse/Expand Button - Same style as bottom bar */}
+        <div className="relative flex">
+          {/* Collapse/Expand Button - Vertical on left side */}
           <button
             onClick={() => setNodeTypesPanelCollapsed(!nodeTypesPanelCollapsed)}
-            className="absolute left-1/2 -top-4 transform -translate-x-1/2 bg-gray-200 dark:bg-gray-800 rounded-full px-2 py-1 text-xs shadow border border-gray-300 dark:border-gray-700"
+            className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-gray-200 dark:bg-gray-800 rounded-full px-1 py-2 text-xs shadow border border-gray-300 dark:border-gray-700"
             aria-label={nodeTypesPanelCollapsed ? 'Expand panel' : 'Collapse panel'}
             style={{ zIndex: 41 }}
           >
-            {nodeTypesPanelCollapsed ? '▼' : '▲'}
+            <span
+              className={`inline-block transition-transform rotate-90`}
+            >
+              {nodeTypesPanelCollapsed ? '▼' : '▲'}
+            </span>
           </button>
 
           <div
