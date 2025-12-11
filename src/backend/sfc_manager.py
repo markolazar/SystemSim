@@ -186,7 +186,9 @@ async def execute_sfc(
     # Mark non-executable/non-comment nodes as finished immediately (start, end, condition)
     # Comments will be marked finished when their predecessors finish
     # IMPORTANT: Initialize fresh for each execution to avoid state persistence
-    finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]}
+    finished = {
+        n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]
+    }
     running = set()
 
     async def execute_node(node_id):
@@ -297,7 +299,9 @@ async def execute_sfc(
         """Main SFC execution loop"""
         # Reinitialize state to prevent contamination from previous runs
         nonlocal finished, running
-        finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]}
+        finished = {
+            n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]
+        }
         running = set()
 
         print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
@@ -309,7 +313,8 @@ async def execute_sfc(
             while pending or active_tasks or comment_nodes:
                 # Handle comment nodes - mark as finished when predecessors are done
                 comments_ready = [
-                    cid for cid in comment_nodes
+                    cid
+                    for cid in comment_nodes
                     if all(src in finished for src in incoming[cid])
                 ]
                 for cid in comments_ready:
