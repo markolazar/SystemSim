@@ -138,7 +138,9 @@ async def migrate_database():
         column_names = [col[1] for col in columns]
         if "data_type" not in column_names:
             try:
-                await db.execute("ALTER TABLE track_for_simulation ADD COLUMN data_type TEXT")
+                await db.execute(
+                    "ALTER TABLE track_for_simulation ADD COLUMN data_type TEXT"
+                )
                 await db.commit()
                 print("Added data_type column to track_for_simulation table")
             except Exception as e:
