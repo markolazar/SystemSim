@@ -464,12 +464,12 @@ const CommentNode = ({ data, selected }: any) => {
         position={Position.Left}
         style={{ background: data.color, width: 14, height: 14 }}
       />
-      {commentText}
       <Handle
         type="source"
         position={Position.Right}
         style={{ background: data.color, width: 14, height: 14 }}
       />
+      {commentText}
     </div>
   )
 }
@@ -1476,23 +1476,27 @@ function SFCEditor() {
   // Color mapping for edge status based on source and target nodes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
   const getEdgeColor = (edge: any) => {
-    const sourceNode = nodes.find((n) => n.id === edge.source)
     const sourceStatus = nodeStatus[edge.source]?.status
     const targetStatus = nodeStatus[edge.target]?.status
 
-    // If both source and target are finished, the edge was successfully traversed - green
-    if (sourceStatus === 'finished' && targetStatus === 'finished') {
-      return '#22c55e' // green - execution successfully went through this edge
+    // If either has an error, show red - highest priority
+    if (sourceStatus === 'error' || targetStatus === 'error') {
+      return '#ef4444' // red - error occurred
     }
 
-    // If source is running or target is running, show yellow
-    if (sourceStatus === 'running' || targetStatus === 'running') {
+    // If source is finished and target is running, execution is flowing through - yellow
+    if (sourceStatus === 'finished' && targetStatus === 'running') {
+      return '#fde047' // yellow - execution actively passing through this edge
+    }
+
+    // If source is running, show yellow (execution approaching this edge)
+    if (sourceStatus === 'running') {
       return '#fde047' // yellow - execution in progress
     }
 
-    // If either has an error, show red
-    if (sourceStatus === 'error' || targetStatus === 'error') {
-      return '#ef4444' // red - error occurred
+    // If both source and target are finished, the edge was successfully traversed - green
+    if (sourceStatus === 'finished' && targetStatus === 'finished') {
+      return '#22c55e' // green - execution successfully completed through this path
     }
 
     // Default gray for idle/unexecuted edges

@@ -175,15 +175,18 @@ async def execute_sfc(
 
     # Execute setvalue and wait nodes
     executable_nodes = {n["id"] for n in nodes if n["type"] in ["setvalue", "wait"]}
+    comment_nodes = {n["id"] for n in nodes if n["type"] == "comment"}
 
     print(f"DEBUG: Found {len(executable_nodes)} executable nodes: {executable_nodes}")
+    print(f"DEBUG: Found {len(comment_nodes)} comment nodes: {comment_nodes}")
     print(f"DEBUG: Node map keys: {list(node_map.keys())}")
     print(f"DEBUG: Incoming edges: {incoming}")
     print(f"DEBUG: Outgoing edges: {outgoing}")
 
-    # Mark non-executable nodes as finished immediately so they don't block execution
+    # Mark non-executable/non-comment nodes as finished immediately (start, end, condition)
+    # Comments will be marked finished when their predecessors finish
     # IMPORTANT: Initialize fresh for each execution to avoid state persistence
-    finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
+    finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]}
     running = set()
 
     async def execute_node(node_id):
@@ -242,7 +245,7 @@ async def execute_sfc(
                 await asyncio.sleep(wait_time)
 
             else:
-                # Skip unknown node types
+                # Skip unknown node types (including comments)
                 pass
 
             stop_updates = True
@@ -294,7 +297,7 @@ async def execute_sfc(
         """Main SFC execution loop"""
         # Reinitialize state to prevent contamination from previous runs
         nonlocal finished, running
-        finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
+        finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait", "comment"]}
         running = set()
 
         print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
@@ -303,7 +306,20 @@ async def execute_sfc(
         active_tasks = {}  # Maps node_id -> task
 
         try:
-            while pending or active_tasks:
+            while pending or active_tasks or comment_nodes:
+                # Handle comment nodes - mark as finished when predecessors are done
+                comments_ready = [
+                    cid for cid in comment_nodes
+                    if all(src in finished for src in incoming[cid])
+                ]
+                for cid in comments_ready:
+                    finished.add(cid)
+                    comment_nodes.discard(cid)
+                    await sfc_manager.broadcast(
+                        design_id, {"node_id": cid, "status": "finished"}
+                    )
+                    sfc_manager.update_node_status(design_id, cid, "finished")
+
                 # Find nodes that can run (all dependencies finished, not already running)
                 can_run = [
                     nid
@@ -314,7 +330,7 @@ async def execute_sfc(
 
                 if iteration % 20 == 0:  # Only print every 20 iterations to reduce spam
                     print(
-                        f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={list(active_tasks.keys())}"
+                        f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={list(active_tasks.keys())}, Comments={comment_nodes}"
                     )
                     for nid in pending:
                         print(
