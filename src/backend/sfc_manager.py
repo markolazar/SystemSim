@@ -180,7 +180,7 @@ async def execute_sfc(
 
         try:
             node_type = node.get("type")
-            
+
             # Handle SetValue nodes
             if node_type == "setvalue":
                 setValueConfig = node["data"].get("setValueConfig", {})
@@ -202,13 +202,13 @@ async def execute_sfc(
                     )
                 else:
                     await asyncio.sleep(duration)
-            
+
             # Handle Wait nodes
             elif node_type == "wait":
                 waitConfig = node["data"].get("waitConfig", {})
                 wait_time = float(waitConfig.get("waitTime", 0))
                 await asyncio.sleep(wait_time)
-            
+
             else:
                 # Skip unknown node types
                 pass

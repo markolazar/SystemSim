@@ -314,7 +314,7 @@ const WaitNode = ({ data, selected }: any) => {
   const waitConfig = (data as any).waitConfig || {}
   const displayText = waitConfig.nodeName || data.label
   const waitTime = waitConfig.waitTime || '0'
-  
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const elapsedTime = (data as any).elapsedTime
 
