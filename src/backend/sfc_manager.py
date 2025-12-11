@@ -90,6 +90,11 @@ class SFCExecutionManager:
             return self.active_executions[design_id].get("status", {})
         return {}
 
+    def clear_status(self, design_id):
+        """Clear execution status for a design to prepare for next run"""
+        if design_id in self.active_executions:
+            self.active_executions[design_id]["status"] = {}
+
 
 def get_variant_type(py_type):
     """Map Python types to OPC UA VariantType"""

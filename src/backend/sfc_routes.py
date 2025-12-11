@@ -37,6 +37,9 @@ def setup_sfc_routes(app, sfc_manager: SFCExecutionManager):
         if task and not task.done():
             task.cancel()
 
+        # Clear previous execution status
+        sfc_manager.clear_status(design_id)
+
         # Get design data
         design = await get_sfc_design(design_id)
         if not design:
