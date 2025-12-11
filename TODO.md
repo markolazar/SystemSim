@@ -1,6 +1,6 @@
 # TODO
 
 - [ ] Fix pause/stop buttons
-- [ ] Fix SFC "camera" when load
-- [ ] Fix sidebar
+- [x] Fix SFC "camera" when load
+- [x] Fix sidebar
 - [ ] Add simulation report

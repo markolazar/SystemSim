@@ -226,6 +226,13 @@ async def execute_sfc(
                 design_id, node_id, "finished", elapsed_time=elapsed
             )
 
+        except asyncio.CancelledError:
+            # Task was cancelled - don't add to finished set
+            stop_updates = True
+            await update_task
+            running.discard(node_id)
+            raise  # Re-raise to propagate cancellation
+
         except Exception as e:
             stop_updates = True
             await update_task
@@ -247,8 +254,10 @@ async def execute_sfc(
                 float(node["data"].get("setValueConfig", {}).get("time", 1))
             )
         finally:
-            finished.add(node_id)
-            running.discard(node_id)
+            # Only add to finished if task completed normally or with error (not cancelled)
+            if node_id in running:
+                finished.add(node_id)
+                running.discard(node_id)
 
     async def run_sfc():
         """Main SFC execution loop"""
@@ -262,53 +271,64 @@ async def execute_sfc(
         iteration = 0
         active_tasks = {}  # Maps node_id -> task
 
-        while pending or active_tasks:
-            # Find nodes that can run (all dependencies finished, not already running)
-            can_run = [
-                nid
-                for nid in pending
-                if all(src in finished for src in incoming[nid])
-                and nid not in active_tasks
-            ]
+        try:
+            while pending or active_tasks:
+                # Find nodes that can run (all dependencies finished, not already running)
+                can_run = [
+                    nid
+                    for nid in pending
+                    if all(src in finished for src in incoming[nid])
+                    and nid not in active_tasks
+                ]
 
-            if iteration % 20 == 0:  # Only print every 20 iterations to reduce spam
-                print(
-                    f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={list(active_tasks.keys())}"
-                )
-                for nid in pending:
+                if iteration % 20 == 0:  # Only print every 20 iterations to reduce spam
                     print(
-                        f"  Node {nid}: incoming={incoming[nid]}, needs={[src for src in incoming[nid] if src not in finished]}"
+                        f"DEBUG: Pending={pending}, Can run={can_run}, Finished={finished}, Running={list(active_tasks.keys())}"
                     )
-            iteration += 1
+                    for nid in pending:
+                        print(
+                            f"  Node {nid}: incoming={incoming[nid]}, needs={[src for src in incoming[nid] if src not in finished]}"
+                        )
+                iteration += 1
 
-            # Start new tasks
-            for nid in can_run:
-                running.add(nid)
-                active_tasks[nid] = asyncio.create_task(execute_node(nid))
+                # Start new tasks
+                for nid in can_run:
+                    running.add(nid)
+                    active_tasks[nid] = asyncio.create_task(execute_node(nid))
 
-            if not active_tasks:
-                if not can_run:
-                    await asyncio.sleep(0.05)
-                continue
+                if not active_tasks:
+                    if not can_run:
+                        await asyncio.sleep(0.05)
+                    continue
 
-            # Wait for at least one task to complete
-            done, pending_tasks = await asyncio.wait(
-                active_tasks.values(), return_when=asyncio.FIRST_COMPLETED
-            )
+                # Wait for at least one task to complete
+                done, pending_tasks = await asyncio.wait(
+                    active_tasks.values(), return_when=asyncio.FIRST_COMPLETED
+                )
 
-            # Clean up completed tasks
-            for nid in list(active_tasks.keys()):
-                if active_tasks[nid] in done:
-                    del active_tasks[nid]
+                # Clean up completed tasks
+                for nid in list(active_tasks.keys()):
+                    if active_tasks[nid] in done:
+                        del active_tasks[nid]
 
-            await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)
 
-            # Remove finished nodes from pending after a short delay to ensure
-            # all status updates have propagated
-            pending = executable_nodes - finished
+                # Remove finished nodes from pending after a short delay to ensure
+                # all status updates have propagated
+                pending = executable_nodes - finished
 
-        print("DEBUG: SFC execution completed")
-        await sfc_manager.broadcast(design_id, {"status": "all_finished"})
+            print("DEBUG: SFC execution completed")
+            await sfc_manager.broadcast(design_id, {"status": "all_finished"})
+
+        except asyncio.CancelledError:
+            print(f"DEBUG: SFC execution cancelled for design {design_id}")
+            # Cancel all running node tasks
+            for task in active_tasks.values():
+                task.cancel()
+            # Wait for all tasks to finish cancellation
+            if active_tasks:
+                await asyncio.gather(*active_tasks.values(), return_exceptions=True)
+            raise  # Re-raise to properly handle cancellation
 
     # Create and start the execution task
     task = asyncio.create_task(run_sfc())

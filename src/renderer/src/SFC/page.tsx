@@ -659,10 +659,24 @@ function SFCEditor() {
     // (Pause not implemented in backend yet)
   }
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleStop = () => {
+  const handleStop = async () => {
+    if (!currentDesignId) return
+
+    // Call backend stop endpoint
+    try {
+      const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+      await fetch(`http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/stop`, {
+        method: 'POST'
+      })
+    } catch (error) {
+      console.error('Failed to stop execution:', error)
+    }
+
+    // Reset frontend state
     setIsRunning(false)
     setIsPaused(false)
-    // (Stop not implemented in backend yet)
+    setNodeStatus({})
+    setExecutionLogs([])
     if (pollingIntervalRef.id) {
       clearInterval(pollingIntervalRef.id)
       pollingIntervalRef.id = null
@@ -1221,6 +1235,37 @@ function SFCEditor() {
 
     loadInitialData()
   }, [])
+
+  // Auto-save viewport when leaving SFC editor
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const saveOnUnmount = async () => {
+      if (currentDesignId && reactFlowInstance) {
+        try {
+          const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT
+          const currentViewport = reactFlowInstance.getViewport()
+          await fetch(
+            `http://localhost:${BACKEND_PORT}/sfc/designs/${currentDesignId}/save`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nodes: JSON.stringify(nodes),
+                edges: JSON.stringify(edges),
+                viewport: JSON.stringify(currentViewport)
+              })
+            }
+          )
+        } catch (error) {
+          console.error('Failed to auto-save design on unmount:', error)
+        }
+      }
+    }
+
+    return () => {
+      saveOnUnmount()
+    }
+  }, [currentDesignId, nodes, edges, reactFlowInstance])
 
   // Keyboard shortcut: Ctrl+S to save
   useEffect(() => {

@@ -1,5 +1,6 @@
 """SFC Design Routes - API endpoints for SFC designs"""
 
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from database import (
     create_sfc_design,
@@ -62,6 +63,21 @@ def setup_sfc_routes(app, sfc_manager: SFCExecutionManager):
         # Start SFC execution
         await execute_sfc(design_id, nodes, edges, opc_url, opc_prefix, sfc_manager)
         return {"success": True, "message": "SFC execution started"}
+
+    @app.post("/sfc/designs/{design_id}/stop")
+    async def stop_sfc_endpoint(design_id: int):
+        """Stop SFC execution for a design"""
+        task = sfc_manager.get_task(design_id)
+        if task and not task.done():
+            task.cancel()
+
+        # Clear execution status
+        sfc_manager.clear_status(design_id)
+
+        # Broadcast stop status to all clients
+        await sfc_manager.broadcast(design_id, {"status": "stopped"})
+
+        return {"success": True, "message": "SFC execution stopped"}
 
     @app.post("/sfc/designs")
     async def create_design(request: dict):
