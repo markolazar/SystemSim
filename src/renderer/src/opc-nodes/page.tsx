@@ -50,6 +50,7 @@ export default function OPCNodesPage() {
   const [isChildrenLoading, setIsChildrenLoading] = useState(true)
   const [, setSelectedChildIds] = useState<string[]>([])
   const [childrenSearch, setChildrenSearch] = useState('')
+  const [nodesSearch, setNodesSearch] = useState('')
   const [childrenSortKey, setChildrenSortKey] = useState<
     'node_id' | 'browse_name' | 'last_discovered' | 'duration_ms'
   >('last_discovered')
@@ -181,8 +182,17 @@ export default function OPCNodesPage() {
     }))
   }, [nodes, config])
 
+  const filteredNodes = useMemo(() => {
+    return nodesWithShortId.filter(
+      (node) =>
+        node.node_id.toLowerCase().includes(nodesSearch.toLowerCase()) ||
+        (node.browse_name && node.browse_name.toLowerCase().includes(nodesSearch.toLowerCase())) ||
+        (node.short_node_id && node.short_node_id.toLowerCase().includes(nodesSearch.toLowerCase()))
+    )
+  }, [nodesWithShortId, nodesSearch])
+
   const sortedNodes = useMemo(() => {
-    const copy = [...nodesWithShortId]
+    const copy = [...filteredNodes]
     copy.sort((a, b) => {
       const valA = a[sortKey]
       const valB = b[sortKey]
@@ -200,7 +210,7 @@ export default function OPCNodesPage() {
         : String(valB).localeCompare(String(valA))
     })
     return copy
-  }, [nodesWithShortId, sortKey, sortDir])
+  }, [filteredNodes, sortKey, sortDir])
 
   const totalPages = Math.max(1, Math.ceil(sortedNodes.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -605,36 +615,48 @@ export default function OPCNodesPage() {
             {(isNodesLoading || nodes.length > 0) && (
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle>📋 Discovered Nodes ({nodes.length})</CardTitle>
-                    {discoveryResult && (
-                      <div className="text-sm text-muted-foreground">
-                        <span>Last discovery: </span>
-                        <span>{new Date().toLocaleString()}</span>
-                        {'duration_ms' in (discoveryResult as any) && (
-                          <span className="ml-2">
-                            Duration: {(discoveryResult as any).duration_ms} ms
-                          </span>
-                        )}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle>📋 Discovered Nodes ({nodes.length})</CardTitle>
+                      {discoveryResult && (
+                        <div className="text-sm text-muted-foreground">
+                          <span>Last discovery: </span>
+                          <span>{new Date().toLocaleString()}</span>
+                          {'duration_ms' in (discoveryResult as any) && (
+                            <span className="ml-2">
+                              Duration: {(discoveryResult as any).duration_ms} ms
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 text-sm">
+                        <label className="text-muted-foreground">Rows per page:</label>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value))
+                            setPage(1)
+                          }}
+                          className="rounded border px-2 py-1 text-sm bg-background"
+                        >
+                          {[10, 25, 50, 100].map((size) => (
+                            <option key={size} value={size}>
+                              {size}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    )}
-                    <div className="flex items-center gap-3 text-sm">
-                      <label className="text-muted-foreground">Rows per page:</label>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => {
-                          setPageSize(Number(e.target.value))
-                          setPage(1)
-                        }}
-                        className="rounded border px-2 py-1 text-sm bg-background"
-                      >
-                        {[10, 25, 50, 100].map((size) => (
-                          <option key={size} value={size}>
-                            {size}
-                          </option>
-                        ))}
-                      </select>
                     </div>
+                    <Input
+                      type="text"
+                      placeholder="Search by node ID, browse name, or short ID..."
+                      value={nodesSearch}
+                      onChange={(e) => {
+                        setNodesSearch(e.target.value)
+                        setPage(1)
+                      }}
+                      className="w-full"
+                    />
                   </div>
                 </CardHeader>
                 <CardContent>

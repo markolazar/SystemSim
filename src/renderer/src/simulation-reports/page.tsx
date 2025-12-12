@@ -211,7 +211,7 @@ export default function SimulationReportsPage() {
                 </CardHeader>
                 <CardContent className="h-80" ref={cardContentRef}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={downsampledData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }} syncId="simReports" syncMethod="value">
+                        <LineChart data={downsampledData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                                 type="number"
