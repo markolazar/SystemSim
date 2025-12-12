@@ -80,6 +80,20 @@ async def init_database():
         """
         )
 
+        # SFC Designer nodes selection table
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sfc_nodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL UNIQUE,
+                shortnodeid TEXT,
+                data_type TEXT,
+                regex_pattern TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+
         # Simulation runs metadata
         await db.execute(
             """
@@ -204,6 +218,20 @@ async def migrate_database():
                 )
                 await db.commit()
                 print("Added short_node_id column to simulation_samples table")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
+        # Check if shortnodeid column exists in sfc_nodes table
+        cursor = await db.execute("PRAGMA table_info(sfc_nodes)")
+        columns = await cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        # Add shortnodeid column if it doesn't exist
+        if "shortnodeid" not in column_names:
+            try:
+                await db.execute("ALTER TABLE sfc_nodes ADD COLUMN shortnodeid TEXT")
+                await db.commit()
+                print("Added shortnodeid column to sfc_nodes table")
             except Exception as e:
                 print(f"Migration error: {e}")
 
@@ -500,6 +528,69 @@ async def get_opc_node_autocomplete(search_term: str = ""):
             )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+
+
+async def save_sfc_nodes(node_ids: list[str], regex_pattern: str = ""):
+    """Save selected SFC nodes and regex pattern to database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        # Clear existing SFC nodes
+        await db.execute("DELETE FROM sfc_nodes")
+
+        # Insert new SFC nodes with shortnodeid from opc_nodes
+        for node_id in node_ids:
+            # Get shortnodeid from opc_nodes
+            cursor = await db.execute(
+                "SELECT shortnodeid FROM opc_nodes WHERE node_id = ?", (node_id,)
+            )
+            row = await cursor.fetchone()
+            shortnodeid = row[0] if row else None
+
+            await db.execute(
+                "INSERT INTO sfc_nodes (node_id, shortnodeid, regex_pattern) VALUES (?, ?, ?)",
+                (node_id, shortnodeid, regex_pattern),
+            )
+
+        await db.commit()
+
+
+async def get_sfc_nodes():
+    """Retrieve selected SFC node IDs from database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute("SELECT node_id FROM sfc_nodes ORDER BY node_id")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+
+
+async def get_sfc_nodes_full():
+    """Retrieve selected SFC nodes with all details from database"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """
+            SELECT sn.node_id, sn.shortnodeid, on.browse_name, on.data_type, sn.regex_pattern
+            FROM sfc_nodes sn
+            LEFT JOIN opc_nodes AS on ON sn.node_id = on.node_id
+            ORDER BY sn.shortnodeid
+        """
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+
+
+async def get_sfc_regex_pattern():
+    """Retrieve the regex pattern used for SFC node selection"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        cursor = await db.execute("SELECT regex_pattern FROM sfc_nodes LIMIT 1")
+        row = await cursor.fetchone()
+        return row[0] if row else ""
 
 
 # SFC Design CRUD operations

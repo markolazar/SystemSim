@@ -37,7 +37,7 @@ interface OPCNode {
     data_type: string | null
 }
 
-export default function SimulationConfigPage() {
+export default function SFCConfigPage() {
     const [regexPattern, setRegexPattern] = useState("")
     const [allNodes, setAllNodes] = useState<OPCNode[]>([])
     const [matchingNodes, setMatchingNodes] = useState<OPCNode[]>([])
@@ -80,11 +80,11 @@ export default function SimulationConfigPage() {
         loadNodes()
     }, [backendPort])
 
-    // Load saved simulation config on component mount
+    // Load saved SFC config on component mount
     useEffect(() => {
-        const loadSimulationConfig = async () => {
+        const loadSFCConfig = async () => {
             try {
-                const response = await fetch(`http://localhost:${backendPort}/simulation/config`)
+                const response = await fetch(`http://localhost:${backendPort}/sfc/config`)
                 const data = await response.json()
 
                 if (data.success) {
@@ -93,26 +93,26 @@ export default function SimulationConfigPage() {
                         setRegexPattern(data.regex_pattern)
                     }
 
-                    // Set tracked nodes
-                    if (data.tracked_nodes && data.tracked_nodes.length > 0) {
-                        setSelectedNodes(new Set(data.tracked_nodes))
+                    // Set selected nodes
+                    if (data.selected_nodes && data.selected_nodes.length > 0) {
+                        setSelectedNodes(new Set(data.selected_nodes))
 
-                        // Filter allNodes to show only tracked ones as matching
-                        const trackedNodeIds = new Set(data.tracked_nodes)
-                        const trackedNodesList = allNodes.filter(node => trackedNodeIds.has(node.id))
-                        setMatchingNodes(trackedNodesList)
+                        // Filter allNodes to show only selected ones as matching
+                        const selectedNodeIdSet = new Set(data.selected_nodes)
+                        const selectedNodesList = allNodes.filter(node => selectedNodeIdSet.has(node.id))
+                        setMatchingNodes(selectedNodesList)
                         setPage(1)
                     }
                 }
             } catch (error) {
-                console.error("Error loading simulation config:", error)
+                console.error("Error loading SFC config:", error)
             } finally {
                 setIsLoading(false)
             }
         }
 
         if (allNodes.length > 0) {
-            loadSimulationConfig()
+            loadSFCConfig()
         }
     }, [allNodes, backendPort])
 
@@ -186,24 +186,28 @@ export default function SimulationConfigPage() {
         setPage(1)
     }
 
-    const handleSave = async () => {
-        const config = {
-            regex_pattern: regexPattern,
-            tracked_nodes: Array.from(selectedNodes)
-        }
+    const goToPage = (newPage: number) => {
+        const safePage = Math.min(Math.max(newPage, 1), totalPages)
+        setPage(safePage)
+    }
 
+    const handleSave = async () => {
         try {
-            const response = await fetch(`http://localhost:${backendPort}/simulation/config`, {
+            const response = await fetch(`http://localhost:${backendPort}/sfc/config`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                body: JSON.stringify(config)
+                body: JSON.stringify({
+                    regex_pattern: regexPattern,
+                    selected_nodes: Array.from(selectedNodes),
+                }),
             })
 
             const data = await response.json()
+
             if (data.success) {
-                setToast({ message: "Simulation config saved successfully!", type: "success" })
+                setToast({ message: "SFC node configuration saved successfully", type: "success" })
                 setTimeout(() => setToast(null), 3000)
             } else {
                 setToast({ message: `Failed to save config: ${data.message || "Unknown error"}`, type: "error" })
@@ -267,12 +271,16 @@ export default function SimulationConfigPage() {
                         <Separator orientation="vertical" className="mr-2 h-4" />
                         <Breadcrumb>
                             <BreadcrumbList>
-                                <BreadcrumbItem>
-                                    <BreadcrumbLink href="#">Simulation</BreadcrumbLink>
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="#">Design</BreadcrumbLink>
                                 </BreadcrumbItem>
-                                <BreadcrumbSeparator />
+                                <BreadcrumbSeparator className="hidden md:block" />
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="#">SFC Designer</BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator className="hidden md:block" />
                                 <BreadcrumbItem>
-                                    <BreadcrumbPage>Config</BreadcrumbPage>
+                                    <BreadcrumbPage>Configuration</BreadcrumbPage>
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
@@ -283,8 +291,8 @@ export default function SimulationConfigPage() {
                 <main className="flex-1 overflow-auto">
                     <div className="p-4 md:p-8">
                         <div className="mb-8">
-                            <h1 className="text-lg md:text-xl font-bold mb-2">⚙️ Simulation Configuration</h1>
-                            <p className="text-xs md:text-sm text-muted-foreground">Select OPC nodes to track during simulation execution</p>
+                            <h1 className="text-lg md:text-xl font-bold mb-2">⚙️ SFC Designer Configuration</h1>
+                            <p className="text-xs md:text-sm text-muted-foreground">Select OPC nodes to use in the SFC Designer autocomplete</p>
                         </div>
 
                         {isLoading ? (
@@ -351,11 +359,11 @@ export default function SimulationConfigPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* Matching Nodes Table */}
+                                {/* Selected Nodes Table */}
                                 <Card>
                                     <CardHeader>
                                         <div className="flex items-center justify-between gap-3">
-                                            <CardTitle>Tracked Nodes ({matchingNodes.length})</CardTitle>
+                                            <CardTitle>Selected Nodes ({matchingNodes.length})</CardTitle>
                                             {matchingNodes.length > 0 && (
                                                 <div className="flex items-center gap-2 text-sm">
                                                     <span className="text-muted-foreground">Rows per page:</span>
@@ -439,54 +447,63 @@ export default function SimulationConfigPage() {
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {pagedNodes.map((node) => (
-                                                                <TableRow key={node.id}>
-                                                                    <TableCell className="font-mono text-xs md:text-sm break-words">{node.shortnodeid}</TableCell>
-                                                                    <TableCell className="text-xs md:text-sm text-muted-foreground">{node.browse_name || "-"}</TableCell>
-                                                                    <TableCell className="font-mono text-xs md:text-xs break-all max-w-xs">{node.node_id}</TableCell>
-                                                                    <TableCell className="text-xs md:text-sm text-muted-foreground">{node.data_type || "-"}</TableCell>
+                                                            {pagedNodes.map((node, idx) => (
+                                                                <TableRow key={`${node.node_id}-${idx}`} className="hover:bg-muted/50">
+                                                                    <TableCell className="text-xs md:text-sm break-all font-mono">
+                                                                        {node.shortnodeid || "-"}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-xs md:text-sm">
+                                                                        {node.browse_name || "-"}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-xs md:text-sm font-mono text-muted-foreground break-all">
+                                                                        {node.node_id}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-xs md:text-sm text-muted-foreground">
+                                                                        {node.data_type || "-"}
+                                                                    </TableCell>
                                                                 </TableRow>
                                                             ))}
                                                         </TableBody>
                                                     </Table>
                                                 </div>
 
-                                                {/* Pagination Controls */}
-                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-4 text-sm text-muted-foreground">
-                                                    <span>
-                                                        Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}
-                                                    </span>
-                                                    <div className="flex items-center gap-2">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => setPage(Math.max(1, currentPage - 1))}
-                                                            disabled={currentPage === 1}
-                                                        >
-                                                            Prev
-                                                        </Button>
-                                                        <span className="px-2">Page {currentPage} / {totalPages}</span>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                                                            disabled={currentPage === totalPages}
-                                                        >
-                                                            Next
-                                                        </Button>
+                                                {sortedNodes.length > pageSize && (
+                                                    <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
+                                                        <span>
+                                                            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}
+                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => goToPage(currentPage - 1)}
+                                                                disabled={currentPage === 1}
+                                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                            >
+                                                                Prev
+                                                            </button>
+                                                            <span className="px-2">
+                                                                Page {currentPage} / {totalPages}
+                                                            </span>
+                                                            <button
+                                                                onClick={() => goToPage(currentPage + 1)}
+                                                                disabled={currentPage === totalPages}
+                                                                className="rounded border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                                                            >
+                                                                Next
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </>
                                         )}
                                     </CardContent>
                                 </Card>
 
                                 {/* Save Button */}
-                                <div className="flex justify-end gap-2">
+                                <div className="flex justify-end">
                                     <Button
                                         onClick={handleSave}
-                                        className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                                         disabled={selectedNodes.size === 0}
+                                        className="bg-green-600 hover:bg-green-700"
                                     >
                                         💾 Save Configuration
                                     </Button>

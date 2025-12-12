@@ -13,6 +13,7 @@ interface OPCAutocompleteProps {
     onChange: (value: string) => void;
     placeholder?: string;
     id?: string;
+    allowedNodeIds?: string[]; // Optional: if provided, only these nodes will be shown
 }
 
 export function OPCAutocomplete({
@@ -20,6 +21,7 @@ export function OPCAutocomplete({
     onChange,
     placeholder = 'e.g., ns=2;s=Variable1',
     id,
+    allowedNodeIds,
 }: OPCAutocompleteProps) {
     const [suggestions, setSuggestions] = useState<OPCNode[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -42,8 +44,15 @@ export function OPCAutocomplete({
                 `http://localhost:${backendPort}/opc/autocomplete?search=${encodeURIComponent(searchTerm)}`
             );
             if (response.ok) {
-                const data = await response.json();
-                setSuggestions(data.nodes || []);
+                let data = await response.json();
+                let nodes = data.nodes || [];
+
+                // Filter by allowed node IDs if provided
+                if (allowedNodeIds && allowedNodeIds.length > 0) {
+                    nodes = nodes.filter((node: OPCNode) => allowedNodeIds.includes(node.node_id));
+                }
+
+                setSuggestions(nodes);
                 setIsOpen(true);
                 setSelectedIndex(-1);
             } else {
@@ -56,7 +65,7 @@ export function OPCAutocomplete({
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [allowedNodeIds]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;

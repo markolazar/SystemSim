@@ -1,0 +1,71 @@
+import { AppSidebar } from "@/components/app-sidebar"
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import {
+    SidebarInset,
+    SidebarProvider,
+    SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { ModeToggle } from "@/components/mode-toggle"
+import SFC from "@/SFC/page"
+import { useState, useEffect } from "react"
+
+export default function SFCEditorPage() {
+    const [isExecutionRunning, setIsExecutionRunning] = useState(false)
+
+    useEffect(() => {
+        const handleExecutionStateChange = (event: CustomEvent) => {
+            setIsExecutionRunning(event.detail.isRunning)
+        }
+
+        window.addEventListener('executionStateChanged' as any, handleExecutionStateChange as EventListener)
+        return () => window.removeEventListener('executionStateChanged' as any, handleExecutionStateChange as EventListener)
+    }, [])
+
+    return (
+        <SidebarProvider>
+            <AppSidebar isRunning={isExecutionRunning} />
+            <SidebarInset className="flex flex-col h-screen">
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b select-none">
+                    <div className="flex items-center gap-2 px-3">
+                        <SidebarTrigger />
+                        <Separator orientation="vertical" className="mr-2 h-4" />
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="#">
+                                        Design
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator className="hidden md:block" />
+                                <BreadcrumbItem className="hidden md:block">
+                                    <BreadcrumbLink href="#">
+                                        SFC Designer
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator className="hidden md:block" />
+                                <BreadcrumbItem>
+                                    <BreadcrumbPage>Editor</BreadcrumbPage>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
+                    </div>
+                    <div className="ml-auto px-3">
+                        <ModeToggle />
+                    </div>
+                </header>
+
+                <main className="flex-1 min-h-0">
+                    <SFC />
+                </main>
+            </SidebarInset>
+        </SidebarProvider>
+    )
+}

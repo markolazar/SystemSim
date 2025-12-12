@@ -615,6 +615,9 @@ function SFCEditor() {
   }>({})
   const pollingIntervalRef = useState<{ id: NodeJS.Timeout | null }>({ id: null })[0]
 
+  // SFC selected nodes state
+  const [selectedSFCNodes, setSelectedSFCNodes] = useState<string[]>([])
+
   // Simulation control handlers
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleStart = async () => {
@@ -1287,6 +1290,23 @@ function SFCEditor() {
     return () => document.removeEventListener('click', handleClick)
   }, [contextMenu, nodeContextMenu])
 
+  // Load selected SFC nodes on mount
+  useEffect(() => {
+    const loadSFCNodes = async () => {
+      try {
+        const backendPort = import.meta.env.VITE_BACKEND_PORT
+        const response = await fetch(`http://localhost:${backendPort}/sfc/selected-nodes`)
+        const data = await response.json()
+        if (data.success && data.nodes) {
+          setSelectedSFCNodes(data.nodes)
+        }
+      } catch (error) {
+        console.error('Error loading SFC selected nodes:', error)
+      }
+    }
+    loadSFCNodes()
+  }, [])
+
   // Handle Set Value modal open event
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -1829,6 +1849,7 @@ function SFCEditor() {
                 value={setValueForm.opcNode}
                 onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
                 placeholder="e.g., ns=2;s=Variable1"
+                allowedNodeIds={selectedSFCNodes}
               />
             </div>
 

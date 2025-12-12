@@ -18,6 +18,7 @@ import {
 
 export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps<typeof Sidebar> & { isRunning?: boolean }) {
     const [configOpen, setConfigOpen] = React.useState(true)
+    const [sfcDesignerOpen, setSFCDesignerOpen] = React.useState(true)
     const [simulationOpen, setSimulationOpen] = React.useState(true)
 
     const handleNavigate = (page: string) => {
@@ -89,19 +90,6 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                         </SidebarMenuItem>
 
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild>
-                                <button
-                                    onClick={() => handleNavigate("dashboard")}
-                                    className={`font-medium w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    disabled={isRunning}
-                                >
-                                    <span className="mr-2">🎨</span>
-                                    SFC Designer
-                                </button>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-
-                        <SidebarMenuItem>
                             <SidebarMenuButton
                                 onClick={() => setSimulationOpen(!simulationOpen)}
                                 className="font-medium"
@@ -134,6 +122,46 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                                             >
                                                 <span className="mr-2">📊</span>
                                                 Reports
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                </SidebarMenuSub>
+                            )}
+                        </SidebarMenuItem>
+
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
+                                onClick={() => setSFCDesignerOpen(!sfcDesignerOpen)}
+                                className="font-medium"
+                                disabled={isRunning}
+                            >
+                                <span className="mr-2">🎨</span>
+                                SFC Designer
+                                <span className={`ml-auto text-lg transition-transform ${sfcDesignerOpen ? 'rotate-90' : ''}`}>›</span>
+                            </SidebarMenuButton>
+                            {sfcDesignerOpen && (
+                                <SidebarMenuSub>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("sfc-config")}
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
+                                            >
+                                                <span className="mr-2">⚙️</span>
+                                                Configuration
+                                            </button>
+                                        </SidebarMenuSubButton>
+                                    </SidebarMenuSubItem>
+                                    <SidebarMenuSubItem>
+                                        <SidebarMenuSubButton asChild>
+                                            <button
+                                                onClick={() => handleNavigate("sfc-editor")}
+                                                className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={isRunning}
+                                            >
+                                                <span className="mr-2">✏️</span>
+                                                Editor
                                             </button>
                                         </SidebarMenuSubButton>
                                     </SidebarMenuSubItem>

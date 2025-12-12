@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import DashboardPage from '@renderer/dashboard/page'
 import OPCServerPage from '@renderer/opc-server/page'
 import OPCNodesPage from '@renderer/opc-nodes/page'
+import SFCConfigPage from '@renderer/sfc-config/page'
+import SFCEditorPage from '@renderer/sfc-editor/page'
 import SimulationConfigPage from '@renderer/simulation-config/page'
 import SimulationReportsPage from '@renderer/simulation-reports/page'
 import { ThemeProvider } from "@/components/theme-provider"
 
 function App(): React.JSX.Element {
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'opc-server' | 'opc-nodes' | 'simulation-config' | 'simulation-reports'>('dashboard')
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'opc-server' | 'opc-nodes' | 'sfc-config' | 'sfc-editor' | 'simulation-config' | 'simulation-reports'>('dashboard')
 
   useEffect(() => {
     const handleNavigation = (event: CustomEvent) => {
@@ -24,6 +26,10 @@ function App(): React.JSX.Element {
         return <OPCServerPage />
       case 'opc-nodes':
         return <OPCNodesPage />
+      case 'sfc-config':
+        return <SFCConfigPage />
+      case 'sfc-editor':
+        return <SFCEditorPage />
       case 'simulation-config':
         return <SimulationConfigPage />
       case 'simulation-reports':

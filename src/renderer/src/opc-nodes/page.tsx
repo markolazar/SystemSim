@@ -57,7 +57,7 @@ export default function OPCNodesPage() {
     const [isNodesLoading, setIsNodesLoading] = useState(true)
     const [children, setChildren] = useState<{ node_id: string; browse_name: string }[]>([])
     const [isChildrenLoading, setIsChildrenLoading] = useState(true)
-    // Removed child selection state
+    const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
     const [childrenSearch, setChildrenSearch] = useState("")
     const [childrenSortKey, setChildrenSortKey] = useState<"node_id" | "browse_name" | "last_discovered" | "duration_ms">("last_discovered")
     const [childrenSortDir, setChildrenSortDir] = useState<"asc" | "desc">("desc")

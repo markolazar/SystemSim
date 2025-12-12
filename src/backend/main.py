@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_database, migrate_database
 from sfc_manager import SFCExecutionManager
 from sfc_routes import setup_sfc_routes
+from sfc_config_routes import router as sfc_config_router
 from opc_routes import router as opc_router
 from simulation_routes import router as simulation_router
 
@@ -73,6 +74,7 @@ sfc_manager = SFCExecutionManager()
 # Setup routes
 setup_sfc_routes(app, sfc_manager)
 app.include_router(opc_router)
+app.include_router(sfc_config_router)
 app.include_router(simulation_router)
 
 
