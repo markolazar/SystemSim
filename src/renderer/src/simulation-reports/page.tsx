@@ -310,7 +310,7 @@ export default function SimulationReportsPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <Button 
+                                <Button
                                     variant={showAllGraphs ? "default" : "outline"}
                                     onClick={() => setShowAllGraphs(!showAllGraphs)}
                                     disabled={samplesLoading}
