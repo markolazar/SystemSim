@@ -55,6 +55,7 @@ export default function SimulationReportsPage() {
     const [chartOrder, setChartOrder] = useState<string[]>([])
     const [deleting, setDeleting] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [showAllGraphs, setShowAllGraphs] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -112,12 +113,21 @@ export default function SimulationReportsPage() {
     const nodeSeries = useMemo(() => {
         const map = new Map<string, SeriesPoint[]>()
         for (const row of samples) {
-            const num = Number(row.value)
-            if (!Number.isFinite(num)) continue
+            // Convert value to number, handling booleans and other types
+            let num: number
+            const strVal = String(row.value).toLowerCase().trim()
+            if (strVal === 'true') {
+                num = 1
+            } else if (strVal === 'false') {
+                num = 0
+            } else {
+                num = Number(row.value)
+                if (!Number.isFinite(num)) continue
+            }
             if (!map.has(row.node_id)) map.set(row.node_id, [])
             map.get(row.node_id)!.push({ ts: row.ts, value: num })
         }
-        // sort by ts and drop single-point series later
+        // sort by ts
         for (const arr of map.values()) {
             arr.sort((a, b) => a.ts - b.ts)
         }
@@ -137,10 +147,13 @@ export default function SimulationReportsPage() {
     const seriesEntries = useMemo(() => {
         const entries: { nodeId: string; shortNodeId: string | null; data: SeriesPoint[] }[] = []
         for (const [nodeId, data] of nodeSeries.entries()) {
-            if (data.length > 1) entries.push({ nodeId, shortNodeId: nodeShortIdMap.get(nodeId) || null, data })
+            // Show all data if showAllGraphs is true, otherwise only show series with > 1 point
+            if (showAllGraphs || data.length > 1) {
+                entries.push({ nodeId, shortNodeId: nodeShortIdMap.get(nodeId) || null, data })
+            }
         }
         return entries
-    }, [nodeSeries, nodeShortIdMap])
+    }, [nodeSeries, nodeShortIdMap, showAllGraphs])
 
     useEffect(() => {
         setChartOrder(seriesEntries.map(e => e.nodeId))
@@ -179,7 +192,14 @@ export default function SimulationReportsPage() {
 
         // Apply downsampling to reduce points for rendering
         const threshold = calculateOptimalThreshold(containerWidth || 800)
-        const downsampledData = useMemo(() => downsampleLTTB(data, threshold), [data, threshold])
+        const downsampledData = useMemo(() => {
+            const sampled = downsampleLTTB(data, threshold)
+            // Extend the last point to the end of xDomain if needed
+            if (sampled.length > 0 && xDomain && sampled[sampled.length - 1].ts < xDomain[1]) {
+                return [...sampled, { ts: xDomain[1], value: sampled[sampled.length - 1].value }]
+            }
+            return sampled
+        }, [data, threshold, xDomain])
 
         return (
             <Card ref={setNodeRef} style={style} className="w-full">
@@ -209,9 +229,10 @@ export default function SimulationReportsPage() {
                                 cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                             />
                             <Line
-                                type="monotone"
+                                type="stepAfter"
                                 dataKey="value"
                                 stroke={color}
+                                strokeWidth={2}
                                 dot={false}
                                 isAnimationActive={false}
                                 name="value"
@@ -289,6 +310,13 @@ export default function SimulationReportsPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                <Button 
+                                    variant={showAllGraphs ? "default" : "outline"}
+                                    onClick={() => setShowAllGraphs(!showAllGraphs)}
+                                    disabled={samplesLoading}
+                                >
+                                    {showAllGraphs ? "Hide Single" : "Show All"}
+                                </Button>
                                 <Button variant="outline" onClick={() => selectedRun && setSelectedRun(selectedRun)} disabled={samplesLoading}>
                                     Refresh
                                 </Button>
