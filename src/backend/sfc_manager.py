@@ -356,7 +356,9 @@ async def execute_sfc(
             incoming[target].append(source)
 
     # Execute setnumber, setbool, and wait nodes
-    executable_nodes = {n["id"] for n in nodes if n["type"] in ["setnumber", "setbool", "wait"]}
+    executable_nodes = {
+        n["id"] for n in nodes if n["type"] in ["setnumber", "setbool", "wait"]
+    }
 
     print(f"DEBUG: Found {len(executable_nodes)} executable nodes: {executable_nodes}")
     print(f"DEBUG: Node map keys: {list(node_map.keys())}")
@@ -365,7 +367,9 @@ async def execute_sfc(
 
     # Mark non-executable nodes as finished immediately (start, end, condition)
     # IMPORTANT: Initialize fresh for each execution to avoid state persistence
-    finished = {n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]}
+    finished = {
+        n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]
+    }
     running = set()
 
     async def execute_node(node_id):
@@ -428,7 +432,7 @@ async def execute_sfc(
                     # Convert string to boolean
                     if isinstance(bool_value, str):
                         bool_value = bool_value.lower() == "true"
-                    
+
                     # Write boolean value to OPC
                     await _write_bool_to_opc_node(
                         opc_url,
@@ -499,7 +503,9 @@ async def execute_sfc(
         """Main SFC execution loop"""
         # Reinitialize state to prevent contamination from previous runs
         nonlocal finished, running
-        finished = {n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]}
+        finished = {
+            n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]
+        }
         running = set()
 
         print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
@@ -604,14 +610,17 @@ async def _write_to_opc_node(
         # Check for array notation like "dbPLI.PLI_R[100]"
         array_index = None
         base_node = opc_node
-        if '[' in opc_node and ']' in opc_node:
+        if "[" in opc_node and "]" in opc_node:
             # Extract array index
             import re
-            match = re.match(r'^(.+)\[(\d+)\]$', opc_node)
+
+            match = re.match(r"^(.+)\[(\d+)\]$", opc_node)
             if match:
                 base_node = match.group(1)
                 array_index = int(match.group(2))
-                print(f"DEBUG: Detected array access - base: {base_node}, index: {array_index}")
+                print(
+                    f"DEBUG: Detected array access - base: {base_node}, index: {array_index}"
+                )
 
         # Reconstruct full NodeId from short ID
         if opc_prefix and not base_node.startswith("ns="):
@@ -625,15 +634,19 @@ async def _write_to_opc_node(
         # Get the current data type to determine variant type
         try:
             current_value = node_obj.get_value()
-            
+
             # If accessing array element, get the element type
             if array_index is not None:
                 if isinstance(current_value, (list, tuple)):
                     if array_index >= len(current_value):
-                        raise ValueError(f"Array index {array_index} out of bounds (length: {len(current_value)})")
+                        raise ValueError(
+                            f"Array index {array_index} out of bounds (length: {len(current_value)})"
+                        )
                     value_type = type(current_value[array_index])
                 else:
-                    raise TypeError(f"Node is not an array but array index was specified")
+                    raise TypeError(
+                        f"Node is not an array but array index was specified"
+                    )
             else:
                 value_type = type(current_value)
         except:
@@ -654,7 +667,7 @@ async def _write_to_opc_node(
                 v = start + (end - start) * i / (steps - 1)
                 # Convert to correct type
                 typed_value = value_type(v)
-                
+
                 # Handle array element access
                 if array_index is not None:
                     # Read entire array, modify element, write back
@@ -728,14 +741,17 @@ async def _write_bool_to_opc_node(
         # Check for array notation like "dbPLI.PLI_R[100]"
         array_index = None
         base_node = opc_node
-        if '[' in opc_node and ']' in opc_node:
+        if "[" in opc_node and "]" in opc_node:
             # Extract array index
             import re
-            match = re.match(r'^(.+)\[(\d+)\]$', opc_node)
+
+            match = re.match(r"^(.+)\[(\d+)\]$", opc_node)
             if match:
                 base_node = match.group(1)
                 array_index = int(match.group(2))
-                print(f"DEBUG: Detected array access - base: {base_node}, index: {array_index}")
+                print(
+                    f"DEBUG: Detected array access - base: {base_node}, index: {array_index}"
+                )
 
         # Reconstruct full NodeId from short ID
         if opc_prefix and not base_node.startswith("ns="):
@@ -743,7 +759,9 @@ async def _write_bool_to_opc_node(
         else:
             full_node_id = base_node
 
-        print(f"DEBUG: Writing boolean {bool_value} to OPC node: {full_node_id} (array index: {array_index})")
+        print(
+            f"DEBUG: Writing boolean {bool_value} to OPC node: {full_node_id} (array index: {array_index})"
+        )
         node_obj = client.get_node(full_node_id)
 
         # Write boolean value
@@ -752,13 +770,17 @@ async def _write_bool_to_opc_node(
             array_value = node_obj.get_value()
             if isinstance(array_value, list):
                 if array_index >= len(array_value):
-                    raise ValueError(f"Array index {array_index} out of bounds (length: {len(array_value)})")
+                    raise ValueError(
+                        f"Array index {array_index} out of bounds (length: {len(array_value)})"
+                    )
                 array_value[array_index] = bool_value
             else:
                 # Convert tuple to list if needed
                 array_value = list(array_value)
                 if array_index >= len(array_value):
-                    raise ValueError(f"Array index {array_index} out of bounds (length: {len(array_value)})")
+                    raise ValueError(
+                        f"Array index {array_index} out of bounds (length: {len(array_value)})"
+                    )
                 array_value[array_index] = bool_value
             # Write array with proper variant type
             dv = ua.DataValue(ua.Variant(array_value))
