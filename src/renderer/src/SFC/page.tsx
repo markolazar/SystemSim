@@ -1292,6 +1292,7 @@ function SFCEditor() {
 
   // Load selected SFC nodes on mount
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const loadSFCNodes = async () => {
       try {
         const backendPort = import.meta.env.VITE_BACKEND_PORT
@@ -1714,8 +1715,9 @@ function SFCEditor() {
             </button>
 
             <div
-              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-36 overflow-y-auto'
-                }`}
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${
+                nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-36 overflow-y-auto'
+              }`}
             >
               {!nodeTypesPanelCollapsed && (
                 <div className="p-2">
@@ -1946,7 +1948,6 @@ function SFCEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Comment Modal */}
       <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
         <DialogContent className="sm:max-w-[500px]">
@@ -1976,7 +1977,6 @@ function SFCEditor() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* New Design Dialog */}
       <Dialog open={showNewDesignDialog} onOpenChange={setShowNewDesignDialog}>
         <DialogContent className="sm:max-w-[400px]">

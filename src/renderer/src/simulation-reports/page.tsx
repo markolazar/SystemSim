@@ -190,7 +190,7 @@ export default function SimulationReportsPage() {
                             <Tooltip
                                 formatter={(val: number) => val}
                                 labelFormatter={(ts) => new Date(ts as number).toLocaleString()}
-                                trigger="axis"
+                                trigger="hover"
                                 cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                             />
                             <Line
