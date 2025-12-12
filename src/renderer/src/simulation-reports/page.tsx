@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable"
@@ -53,6 +54,7 @@ export default function SimulationReportsPage() {
     const [error, setError] = useState<string | null>(null)
     const [chartOrder, setChartOrder] = useState<string[]>([])
     const [deleting, setDeleting] = useState(false)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -166,7 +168,7 @@ export default function SimulationReportsPage() {
         const displayTitle = shortNodeId || nodeId
         return (
             <Card ref={setNodeRef} style={style} className="w-full">
-                <CardHeader className="flex flex-row items-center justify-between p-4">
+                <CardHeader className="flex flex-row items-center justify-between px-4 py-2">
                     <CardTitle className="text-sm font-semibold break-all">{displayTitle}</CardTitle>
                     <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
@@ -174,7 +176,7 @@ export default function SimulationReportsPage() {
                 </CardHeader>
                 <CardContent className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                        <LineChart data={data} margin={{ top: 0, right: 10, left: 0, bottom: 0 }} syncId="simReports" syncMethod="value">
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                                 type="number"
@@ -188,6 +190,8 @@ export default function SimulationReportsPage() {
                             <Tooltip
                                 formatter={(val: number) => val}
                                 labelFormatter={(ts) => new Date(ts as number).toLocaleString()}
+                                trigger="axis"
+                                cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                             />
                             <Line
                                 type="monotone"
@@ -247,7 +251,7 @@ export default function SimulationReportsPage() {
                 </header>
 
                 <main className="flex-1 min-h-0 p-4 overflow-auto">
-                    <div className="max-w-7xl mx-auto space-y-4">
+                    <div className="w-full space-y-4">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <div>
                                 <h1 className="text-2xl font-bold">Simulation Reports</h1>
@@ -286,28 +290,10 @@ export default function SimulationReportsPage() {
                                 </Button>
                                 <Button
                                     variant="destructive"
-                                    onClick={async () => {
-                                        if (!selectedRun || !confirm("Delete this simulation run? This cannot be undone.")) return
-                                        setDeleting(true)
-                                        try {
-                                            const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}`, { method: "DELETE" })
-                                            const data = await res.json()
-                                            if (data.success) {
-                                                setRuns(runs.filter(r => r.id !== selectedRun))
-                                                const nextRun = runs.find(r => r.id !== selectedRun)
-                                                setSelectedRun(nextRun?.id || null)
-                                            } else {
-                                                setError(data.message || "Failed to delete run")
-                                            }
-                                        } catch (e) {
-                                            setError(`Failed to delete: ${e}`)
-                                        } finally {
-                                            setDeleting(false)
-                                        }
-                                    }}
-                                    disabled={deleting || !selectedRun}
+                                    onClick={() => setDeleteDialogOpen(true)}
+                                    disabled={!selectedRun}
                                 >
-                                    {deleting ? "Deleting..." : "Delete Run"}
+                                    Delete Run
                                 </Button>
                             </div>
                         </div>
@@ -351,7 +337,7 @@ export default function SimulationReportsPage() {
                         ) : (
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={chartOrder} strategy={verticalListSortingStrategy}>
-                                    <div className="space-y-4">
+                                    <div className="space-y-0">
                                         {orderedEntries.map(({ nodeId, shortNodeId, data }) => (
                                             <ChartCard
                                                 key={nodeId}
@@ -369,6 +355,48 @@ export default function SimulationReportsPage() {
                     </div>
                 </main>
             </SidebarInset>
+
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Simulation Run</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this simulation run? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={async () => {
+                                if (!selectedRun) return
+                                setDeleting(true)
+                                try {
+                                    const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}`, { method: "DELETE" })
+                                    const data = await res.json()
+                                    if (data.success) {
+                                        setRuns(runs.filter(r => r.id !== selectedRun))
+                                        const nextRun = runs.find(r => r.id !== selectedRun)
+                                        setSelectedRun(nextRun?.id || null)
+                                        setDeleteDialogOpen(false)
+                                    } else {
+                                        setError(data.message || "Failed to delete run")
+                                    }
+                                } catch (e) {
+                                    setError(`Failed to delete: ${e}`)
+                                } finally {
+                                    setDeleting(false)
+                                }
+                            }}
+                            disabled={deleting}
+                        >
+                            {deleting ? "Deleting..." : "Delete"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </SidebarProvider>
     )
 }
