@@ -1,20 +1,27 @@
 """OPC Routes - API endpoints for OPC server operations"""
 
+import aiosqlite
 from fastapi import APIRouter
 from database import (
     save_opc_config,
     get_opc_config,
     save_opc_nodes,
+    save_opc_nodes_append,
     get_opc_nodes,
     save_selected_nodes,
     get_selected_nodes,
     get_opc_node_autocomplete,
+    delete_opc_nodes_under,
+    save_discovery_log,
+    get_discovery_log_map,
+    get_db_path,
 )
 from opc_handler import (
     OPCTestRequest,
     OPCSaveRequest,
     OPCDiscoverRequest,
     OPCChildrenRequest,
+    OPCDiscoverUnderRequest,
     connect_to_opc_server,
     discover_nodes,
     list_child_nodes,
@@ -89,6 +96,75 @@ async def list_opc_children(request: OPCChildrenRequest):
     """List immediate child nodes under the provided prefix"""
     result = list_child_nodes(request.url, request.prefix)
     return result
+
+
+@router.post("/discover-under")
+async def discover_under_parent(request: OPCDiscoverUnderRequest):
+    """Discover nodes under a specific parent, replacing previous subtree entries."""
+    import time
+
+    try:
+        # Delete existing nodes under this parent subtree
+        await delete_opc_nodes_under(request.parent_id)
+
+        # Measure discovery duration
+        start = time.time()
+        # Discover starting only from this parent
+        result = discover_nodes(request.url, request.prefix, [request.parent_id])
+        duration_ms = int((time.time() - start) * 1000)
+
+        if result["success"]:
+            await save_opc_nodes_append(result["nodes"])
+            await save_discovery_log(
+                request.parent_id, int(time.time() * 1000), duration_ms
+            )
+            return {
+                "success": True,
+                "message": result["message"],
+                "node_count": len(result["nodes"]),
+                "duration_ms": duration_ms,
+                "parent_id": request.parent_id,
+            }
+        else:
+            return result
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to discover under parent: {str(e)}",
+        }
+
+
+@router.post("/delete-under")
+async def delete_under_parent(parent_id: str):
+    """Delete previously discovered nodes under a parent subtree and clear discovery log."""
+    try:
+        # Delete nodes and discovery log entry
+        await delete_opc_nodes_under(parent_id)
+
+        # Clear discovery log for this parent
+        async with aiosqlite.connect(get_db_path()) as db:
+            await db.execute(
+                "DELETE FROM discovery_log WHERE parent_id = ?", (parent_id,)
+            )
+            await db.commit()
+
+        return {"success": True, "message": "Deleted subtree", "parent_id": parent_id}
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error deleting subtree: {str(e)}",
+            "parent_id": parent_id,
+        }
+
+
+@router.get("/discovery-log")
+async def discovery_log():
+    """Return discovery log map for parents."""
+    try:
+        m = await get_discovery_log_map()
+        return {"success": True, "log": m}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @router.get("/nodes")

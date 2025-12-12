@@ -26,6 +26,12 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useState, useEffect, useMemo } from "react"
 
@@ -51,10 +57,10 @@ export default function OPCNodesPage() {
     const [isNodesLoading, setIsNodesLoading] = useState(true)
     const [children, setChildren] = useState<{ node_id: string; browse_name: string }[]>([])
     const [isChildrenLoading, setIsChildrenLoading] = useState(true)
-    const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
+    // Removed child selection state
     const [childrenSearch, setChildrenSearch] = useState("")
-    const [childrenSortKey, setChildrenSortKey] = useState<"node_id" | "browse_name">("node_id")
-    const [childrenSortDir, setChildrenSortDir] = useState<"asc" | "desc">("asc")
+    const [childrenSortKey, setChildrenSortKey] = useState<"node_id" | "browse_name" | "last_discovered" | "duration_ms">("last_discovered")
+    const [childrenSortDir, setChildrenSortDir] = useState<"asc" | "desc">("desc")
     const [childrenPageSize, setChildrenPageSize] = useState(10)
     const [childrenPage, setChildrenPage] = useState(1)
     const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
@@ -62,6 +68,8 @@ export default function OPCNodesPage() {
     const [pageSize, setPageSize] = useState(25)
     const [page, setPage] = useState(1)
     const [childListHeight, setChildListHeight] = useState(384) // Default 384px (max-h-96)
+    const [discoveryLog, setDiscoveryLog] = useState<Record<string, { last_discovered: number; duration_ms: number }>>({})
+    const [discoveringNodeId, setDiscoveringNodeId] = useState<string | null>(null)
 
     const backendPort = import.meta.env.VITE_BACKEND_PORT
 
@@ -91,7 +99,6 @@ export default function OPCNodesPage() {
         const loadChildren = async () => {
             if (!config) {
                 setChildren([])
-                setSelectedChildIds([])
                 return
             }
             try {
@@ -151,6 +158,20 @@ export default function OPCNodesPage() {
         loadNodes()
     }, [backendPort])
 
+    // Load discovery log map
+    useEffect(() => {
+        const loadLog = async () => {
+            try {
+                const res = await fetch(`http://localhost:${backendPort}/opc/discovery-log`)
+                const data = await res.json()
+                if (data.success && data.log) {
+                    setDiscoveryLog(data.log)
+                }
+            } catch { }
+        }
+        loadLog()
+    }, [backendPort, isDiscovering])
+
     // Compute short node IDs (with prefix removed)
     const nodesWithShortId = useMemo(() => {
         if (!config) return nodes
@@ -200,6 +221,17 @@ export default function OPCNodesPage() {
     const sortedChildren = useMemo(() => {
         const copy = [...filteredChildren]
         copy.sort((a, b) => {
+            if (childrenSortKey === "last_discovered") {
+                const timeA = discoveryLog[a.node_id]?.last_discovered ?? 0
+                const timeB = discoveryLog[b.node_id]?.last_discovered ?? 0
+                return childrenSortDir === "asc" ? timeA - timeB : timeB - timeA
+            }
+            if (childrenSortKey === "duration_ms") {
+                const durationA = discoveryLog[a.node_id]?.duration_ms ?? 0
+                const durationB = discoveryLog[b.node_id]?.duration_ms ?? 0
+                return childrenSortDir === "asc" ? durationA - durationB : durationB - durationA
+            }
+
             const valA = a[childrenSortKey]
             const valB = b[childrenSortKey]
 
@@ -212,7 +244,7 @@ export default function OPCNodesPage() {
                 : String(valB).localeCompare(String(valA))
         })
         return copy
-    }, [filteredChildren, childrenSortKey, childrenSortDir])
+    }, [filteredChildren, childrenSortKey, childrenSortDir, discoveryLog])
 
     const totalChildrenPages = Math.max(1, Math.ceil(sortedChildren.length / childrenPageSize))
     const currentChildrenPage = Math.min(childrenPage, totalChildrenPages)
@@ -227,7 +259,7 @@ export default function OPCNodesPage() {
         setChildrenPage(safePage)
     }
 
-    const toggleChildrenSort = (key: "node_id" | "browse_name") => {
+    const toggleChildrenSort = (key: "node_id" | "browse_name" | "last_discovered" | "duration_ms") => {
         if (childrenSortKey === key) {
             setChildrenSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
         } else {
@@ -251,21 +283,7 @@ export default function OPCNodesPage() {
         setPage(safePage)
     }
 
-    const toggleChild = (nodeId: string) => {
-        setSelectedChildIds((prev) =>
-            prev.includes(nodeId)
-                ? prev.filter((id) => id !== nodeId)
-                : [...prev, nodeId]
-        )
-    }
-
-    const selectAllChildren = () => {
-        setSelectedChildIds(children.map((c) => c.node_id))
-    }
-
-    const clearSelection = () => {
-        setSelectedChildIds([])
-    }
+    // Removed selection handlers
 
     const handleDiscoverNodes = async () => {
         if (!config) {
@@ -288,7 +306,7 @@ export default function OPCNodesPage() {
                 body: JSON.stringify({
                     url: config.url,
                     prefix: config.prefix,
-                    selected_nodes: selectedChildIds,
+                    selected_nodes: children.map(c => c.node_id),
                 }),
             })
 
@@ -346,16 +364,6 @@ export default function OPCNodesPage() {
                                 <CardTitle>Node Discovery</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleDiscoverNodes}
-                                        disabled={isDiscovering || !config || isConfigLoading}
-                                        className="rounded bg-primary px-4 py-2 text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isDiscovering ? "Discovering..." : "Discover Nodes"}
-                                    </button>
-                                </div>
-
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium">Select child nodes to discover</p>
                                     {isChildrenLoading ? (
@@ -402,18 +410,6 @@ export default function OPCNodesPage() {
                                                 <Table className="min-w-full">
                                                     <TableHeader>
                                                         <TableRow className="bg-muted">
-                                                            <TableHead className="w-12">
-                                                                <Checkbox
-                                                                    checked={sortedChildren.length > 0 && sortedChildren.every(c => selectedChildIds.includes(c.node_id))}
-                                                                    onCheckedChange={() => {
-                                                                        if (sortedChildren.every(c => selectedChildIds.includes(c.node_id))) {
-                                                                            setSelectedChildIds(selectedChildIds.filter(id => !sortedChildren.map(c => c.node_id).includes(id)))
-                                                                        } else {
-                                                                            setSelectedChildIds([...new Set([...selectedChildIds, ...sortedChildren.map(c => c.node_id)])])
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            </TableHead>
                                                             <TableHead
                                                                 className="cursor-pointer hover:bg-muted/80"
                                                                 onClick={() => toggleChildrenSort("node_id")}
@@ -426,19 +422,115 @@ export default function OPCNodesPage() {
                                                             >
                                                                 Browse Name {childrenSortKey === "browse_name" && (childrenSortDir === "asc" ? "↑" : "↓")}
                                                             </TableHead>
+                                                            <TableHead
+                                                                className="text-left cursor-pointer hover:bg-muted/80"
+                                                                onClick={() => toggleChildrenSort("last_discovered")}
+                                                            >
+                                                                Last Discovered {childrenSortKey === "last_discovered" && (childrenSortDir === "asc" ? "↑" : "↓")}
+                                                            </TableHead>
+                                                            <TableHead
+                                                                className="text-right cursor-pointer hover:bg-muted/80"
+                                                                onClick={() => toggleChildrenSort("duration_ms")}
+                                                            >
+                                                                Duration (sec) {childrenSortKey === "duration_ms" && (childrenSortDir === "asc" ? "↑" : "↓")}
+                                                            </TableHead>
                                                         </TableRow>
                                                     </TableHeader>
                                                     <TableBody>
                                                         {pagedChildren.map((child) => (
                                                             <TableRow key={child.node_id} className="hover:bg-muted/50">
-                                                                <TableCell>
-                                                                    <Checkbox
-                                                                        checked={selectedChildIds.includes(child.node_id)}
-                                                                        onCheckedChange={() => toggleChild(child.node_id)}
-                                                                    />
+
+                                                                <TableCell className="font-mono text-xs">
+                                                                    <div className="flex items-center justify-between gap-2">
+                                                                        <span className="break-all">{child.node_id}</span>
+                                                                        <div className="flex gap-2">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                onClick={async () => {
+                                                                                    if (!config) return
+                                                                                    setDiscoveringNodeId(child.node_id)
+                                                                                    setDiscoveryResult(null)
+                                                                                    try {
+                                                                                        const res = await fetch(`http://localhost:${backendPort}/opc/discover-under`, {
+                                                                                            method: "POST",
+                                                                                            headers: { "Content-Type": "application/json" },
+                                                                                            body: JSON.stringify({ url: config.url, prefix: config.prefix, parent_id: child.node_id }),
+                                                                                        })
+                                                                                        const data = await res.json()
+                                                                                        setDiscoveryResult(data)
+                                                                                        // Refresh nodes table
+                                                                                        setIsNodesLoading(true)
+                                                                                        const nodesResponse = await fetch(`http://localhost:${backendPort}/opc/nodes`)
+                                                                                        const nodesData = await nodesResponse.json()
+                                                                                        if (nodesData.success && nodesData.nodes) {
+                                                                                            setNodes(nodesData.nodes)
+                                                                                        }
+                                                                                        setIsNodesLoading(false)
+                                                                                        // Refresh discovery log
+                                                                                        try {
+                                                                                            const logRes = await fetch(`http://localhost:${backendPort}/opc/discovery-log`)
+                                                                                            const logData = await logRes.json()
+                                                                                            if (logData.success && logData.log) setDiscoveryLog(logData.log)
+                                                                                        } catch { }
+                                                                                    } catch (e) {
+                                                                                        setDiscoveryResult({ success: false, message: `Error: ${e}` })
+                                                                                    } finally {
+                                                                                        setDiscoveringNodeId(null)
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                Discover
+                                                                            </Button>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="destructive"
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        const res = await fetch(`http://localhost:${backendPort}/opc/delete-under?parent_id=${encodeURIComponent(child.node_id)}`, { method: "POST" })
+                                                                                        const data = await res.json()
+                                                                                        setDiscoveryResult(data)
+                                                                                        // Clear discovery log entry for this child immediately
+                                                                                        setDiscoveryLog(prev => {
+                                                                                            const updated = { ...prev }
+                                                                                            delete updated[child.node_id]
+                                                                                            return updated
+                                                                                        })
+                                                                                        // Refresh nodes table
+                                                                                        setIsNodesLoading(true)
+                                                                                        const nodesResponse = await fetch(`http://localhost:${backendPort}/opc/nodes`)
+                                                                                        const nodesData = await nodesResponse.json()
+                                                                                        if (nodesData.success && nodesData.nodes) {
+                                                                                            setNodes(nodesData.nodes)
+                                                                                        }
+                                                                                        setIsNodesLoading(false)
+                                                                                        // Refresh discovery log
+                                                                                        try {
+                                                                                            const logRes = await fetch(`http://localhost:${backendPort}/opc/discovery-log`)
+                                                                                            const logData = await logRes.json()
+                                                                                            if (logData.success && logData.log) setDiscoveryLog(logData.log)
+                                                                                        } catch { }
+                                                                                    } catch (e) {
+                                                                                        setDiscoveryResult({ success: false, message: `Error: ${e}` })
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                Delete
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
                                                                 </TableCell>
-                                                                <TableCell className="font-mono text-xs">{child.node_id}</TableCell>
                                                                 <TableCell className="text-sm text-muted-foreground">{child.browse_name}</TableCell>
+                                                                <TableCell className="text-xs text-muted-foreground">
+                                                                    {discoveryLog[child.node_id]?.last_discovered
+                                                                        ? new Date(discoveryLog[child.node_id].last_discovered).toLocaleString()
+                                                                        : "-"}
+                                                                </TableCell>
+                                                                <TableCell className="text-xs text-muted-foreground text-right">
+                                                                    {discoveryLog[child.node_id]?.duration_ms
+                                                                        ? (discoveryLog[child.node_id].duration_ms / 1000).toFixed(2)
+                                                                        : "-"}
+                                                                </TableCell>
                                                             </TableRow>
                                                         ))}
                                                     </TableBody>
@@ -467,26 +559,7 @@ export default function OPCNodesPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Selection Controls */}
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={selectAllChildren}
-                                                >
-                                                    Select all
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={clearSelection}
-                                                >
-                                                    Clear
-                                                </Button>
-                                                <span className="text-sm text-muted-foreground">
-                                                    {selectedChildIds.length}/{children.length} selected
-                                                </span>
-                                            </div>
+                                            {/* Selection Controls removed */}
                                         </div>
                                     )}
                                 </div>
@@ -530,6 +603,15 @@ export default function OPCNodesPage() {
                                 <CardHeader>
                                     <div className="flex items-center justify-between gap-3">
                                         <CardTitle>Discovered Nodes ({nodes.length})</CardTitle>
+                                        {discoveryResult && (
+                                            <div className="text-sm text-muted-foreground">
+                                                <span>Last discovery: </span>
+                                                <span>{new Date().toLocaleString()}</span>
+                                                {"duration_ms" in (discoveryResult as any) && (
+                                                    <span className="ml-2">Duration: {(discoveryResult as any).duration_ms} ms</span>
+                                                )}
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-3 text-sm">
                                             <label className="text-muted-foreground">Rows per page:</label>
                                             <select
@@ -562,12 +644,12 @@ export default function OPCNodesPage() {
                                                     ] as const).map((col) => (
                                                         <th
                                                             key={col.key}
-                                                            className={`${col.align === "center" ? "text-center" : "text-left"} px-4 py-2 font-medium cursor-pointer select-none`}
-                                                            onClick={() => toggleSort(col.key)}
+                                                            className={`${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"} px-4 py-2 font-medium cursor-pointer select-none`}
+                                                            onClick={() => toggleSort(col.key as any)}
                                                         >
-                                                            <div className={`flex items-center gap-1 ${col.align === "center" ? "justify-center" : ""}`}>
+                                                            <div className={`flex items-center gap-1 ${col.align === "center" ? "justify-center" : col.align === "right" ? "justify-end" : ""}`}>
                                                                 <span>{col.label}</span>
-                                                                {sortKey === col.key && (
+                                                                {sortKey === (col.key as any) && (
                                                                     <span className="text-xs text-muted-foreground">{sortDir === "asc" ? "▲" : "▼"}</span>
                                                                 )}
                                                             </div>
@@ -644,6 +726,26 @@ export default function OPCNodesPage() {
                     </div>
                 </main>
             </SidebarInset>
+
+            {/* Discovering Dialog */}
+            <Dialog open={discoveringNodeId !== null} onOpenChange={() => { }}>
+                <DialogContent className="sm:max-w-md [&_button]:hidden" onInteractOutside={(e) => e.preventDefault()}>
+                    <DialogHeader>
+                        <DialogTitle>Discovering Nodes</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col items-center justify-center gap-4 py-6">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground">
+                                Discovering child nodes for:
+                            </p>
+                            <p className="text-sm font-mono font-medium break-all mt-2">
+                                {discoveringNodeId || ""}
+                            </p>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </SidebarProvider>
     )
 }

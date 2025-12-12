@@ -56,6 +56,17 @@ async def init_database():
         """
         )
 
+        # Discovery log per parent subtree
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS discovery_log (
+                parent_id TEXT PRIMARY KEY,
+                last_discovered INTEGER,
+                duration_ms INTEGER
+            )
+            """
+        )
+
         # Create simulation config table
         await db.execute(
             """
@@ -307,7 +318,7 @@ async def get_opc_config():
 
 
 async def save_opc_nodes(nodes: list):
-    """Save discovered OPC nodes to database"""
+    """Replace all discovered OPC nodes with provided set (full refresh)."""
     db_path = get_db_path()
 
     async with aiosqlite.connect(db_path) as db:
@@ -338,6 +349,48 @@ async def save_opc_nodes(nodes: list):
         await db.commit()
 
 
+async def save_opc_nodes_append(nodes: list):
+    """Insert discovered OPC nodes without clearing existing ones."""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        for node in nodes:
+            try:
+                await db.execute(
+                    """
+                    INSERT OR IGNORE INTO opc_nodes 
+                    (node_id, browse_name, parent_id, data_type, value_rank, shortnodeid)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        node.get("node_id"),
+                        node.get("browse_name"),
+                        node.get("parent_id"),
+                        node.get("data_type"),
+                        node.get("value_rank"),
+                        node.get("shortnodeid"),
+                    ),
+                )
+            except Exception as e:
+                print(f"Error saving node {node.get('node_id')}: {e}")
+
+        await db.commit()
+
+
+async def delete_opc_nodes_under(parent_id: str):
+    """Delete previously discovered nodes under a given parent subtree."""
+    db_path = get_db_path()
+
+    like = parent_id + "%"
+    async with aiosqlite.connect(db_path) as db:
+        # Delete rows where node_id or parent_id is under the subtree
+        await db.execute(
+            "DELETE FROM opc_nodes WHERE node_id LIKE ? OR parent_id LIKE ?",
+            (like, like),
+        )
+        await db.commit()
+
+
 async def get_opc_nodes():
     """Retrieve all discovered OPC nodes from database"""
     db_path = get_db_path()
@@ -354,6 +407,41 @@ async def get_opc_nodes():
         rows = await cursor.fetchall()
 
         return [dict(row) for row in rows]
+
+
+async def save_discovery_log(parent_id: str, last_discovered: int, duration_ms: int):
+    """Upsert discovery log for a parent subtree."""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute(
+            """
+            INSERT INTO discovery_log (parent_id, last_discovered, duration_ms)
+            VALUES (?, ?, ?)
+            ON CONFLICT(parent_id) DO UPDATE SET last_discovered=excluded.last_discovered, duration_ms=excluded.duration_ms
+            """,
+            (parent_id, last_discovered, duration_ms),
+        )
+        await db.commit()
+
+
+async def get_discovery_log_map() -> dict:
+    """Return mapping parent_id -> { last_discovered, duration_ms }"""
+    db_path = get_db_path()
+
+    async with aiosqlite.connect(db_path) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT parent_id, last_discovered, duration_ms FROM discovery_log"
+        )
+        rows = await cursor.fetchall()
+        return {
+            row["parent_id"]: {
+                "last_discovered": row["last_discovered"],
+                "duration_ms": row["duration_ms"],
+            }
+            for row in rows
+        }
 
 
 async def save_selected_nodes(node_ids: list[str]):

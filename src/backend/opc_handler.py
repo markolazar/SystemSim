@@ -25,6 +25,12 @@ class OPCChildrenRequest(BaseModel):
     prefix: str
 
 
+class OPCDiscoverUnderRequest(BaseModel):
+    url: str
+    parent_id: str
+    prefix: str
+
+
 def generate_short_node_id(node_id: str, prefix: str = "") -> str:
     """
     Generate a short node ID by removing the prefix from the full node ID.
