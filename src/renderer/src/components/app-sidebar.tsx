@@ -1,5 +1,5 @@
 import * as React from "react"
-import { GalleryVerticalEnd, Settings } from "lucide-react"
+import { Cpu, Settings } from "lucide-react"
 
 import {
     Sidebar,
@@ -35,7 +35,7 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                         <SidebarMenuButton size="lg" asChild>
                             <a href="#">
                                 <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                                    <GalleryVerticalEnd className="size-4" />
+                                    <Cpu className="size-4" />
                                 </div>
                                 <div className="flex flex-col gap-0.5 leading-none">
                                     <span className="font-medium">SystemSim</span>
