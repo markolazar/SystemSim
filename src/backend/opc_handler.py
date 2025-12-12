@@ -70,13 +70,83 @@ def generate_short_node_id(node_id: str, prefix: str = "") -> str:
     return node_id
 
 
+def try_expand_array_node(
+    client,
+    node,
+    node_id: str,
+    browse_name: str,
+    data_type: str | None,
+    value_rank: int | None,
+    prefix: str,
+):
+    """
+    If a node is an array type, try to generate indexed node IDs for array elements.
+    For example: ns=2;s=dbpli.pli_a becomes:
+      - ns=2;s=dbpli.pli_a[0]
+      - ns=2;s=dbpli.pli_a[1]
+      - ... etc
+
+    Args:
+        node: OPC node object
+        node_id: Full node ID
+        browse_name: Browse name
+        data_type: Data type string
+        value_rank: Value rank (-1 = scalar, >= 0 = array dimension)
+        prefix: OPC prefix for generating short node IDs
+
+    Returns:
+        List of generated array element nodes, or empty list if not an array
+    """
+    array_nodes = []
+
+    # Check if this is an array (value_rank >= 0 means it's an array)
+    if value_rank is None or value_rank < 0:
+        return array_nodes
+
+    # Enforce fixed array size for this environment
+    array_size = 150
+
+    try:
+
+        # If we got the array size, generate indexed nodes
+        if array_size and array_size > 0:
+            for i in range(array_size):
+                indexed_node_id = f"{node_id}[{i}]"
+                short_id = generate_short_node_id(indexed_node_id, prefix)
+
+                array_nodes.append(
+                    {
+                        "node_id": indexed_node_id,
+                        "browse_name": f"{browse_name}[{i}]",
+                        "parent_id": node_id,
+                        "data_type": (
+                            data_type.replace("[", "").replace("]", "")
+                            if data_type
+                            else None
+                        ),
+                        "value_rank": -1,  # Mark indexed elements as scalar
+                        "shortnodeid": short_id,
+                    }
+                )
+            print(f"Expanded array {node_id} into {array_size} elements")
+        else:
+            # Guard: should not happen with fixed array_size
+            pass
+
+    except Exception as e:
+        print(f"Could not expand array for {node_id}: {e}")
+
+    return array_nodes
+
+
 def discover_nodes_recursive(
-    node, parent_id=None, max_depth=6, current_depth=0, prefix=""
+    client, node, parent_id=None, max_depth=6, current_depth=0, prefix=""
 ):
     """
     Recursively discover all nodes in the OPC server
 
     Args:
+        client: OPC client connection
         node: Current node to process
         parent_id: Parent node ID
         max_depth: Maximum depth to traverse (prevents infinite loops)
@@ -120,11 +190,25 @@ def discover_nodes_recursive(
             }
             nodes.append(node_dict)
 
+            # Try to expand array nodes
+            try:
+                array_elements = try_expand_array_node(
+                    client, node, node_id, browse_name, data_type, value_rank, prefix
+                )
+                if array_elements:
+                    nodes.extend(array_elements)
+                    print(
+                        f"Expanded array {node_id} into {len(array_elements)} elements"
+                    )
+            except Exception as e:
+                print(f"Could not expand array {node_id}: {e}")
+
         # Try to get children
         try:
             children = node.get_children()
             for child in children:
                 child_nodes = discover_nodes_recursive(
+                    client,
                     child,
                     parent_id=node_id,
                     max_depth=max_depth,
@@ -139,7 +223,6 @@ def discover_nodes_recursive(
         print(f"Error processing node: {e}")
 
     return nodes
-
 
 def list_child_nodes(url: str, prefix: str):
     """List immediate children of the given prefix node."""
@@ -232,7 +315,6 @@ def connect_to_opc_server(url: str, prefix: str):
             except Exception as disconnect_error:
                 print(f"Error disconnecting: {disconnect_error}")
 
-
 def discover_nodes(url: str, prefix: str, selected_nodes: list[str] | None = None):
     """
     Discover all nodes recursively from the specified node
@@ -259,7 +341,9 @@ def discover_nodes(url: str, prefix: str, selected_nodes: list[str] | None = Non
             try:
                 node = client.get_node(node_id)
                 print(f"Starting discovery from node: {node_id}")
-                discovered_nodes.extend(discover_nodes_recursive(node, prefix=prefix))
+                discovered_nodes.extend(
+                    discover_nodes_recursive(client, node, prefix=prefix)
+                )
             except Exception as e:
                 print(f"Could not start discovery at {node_id}: {e}")
 

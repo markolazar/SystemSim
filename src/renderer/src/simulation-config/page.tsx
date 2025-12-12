@@ -50,6 +50,7 @@ export default function SimulationConfigPage() {
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
     const [isSearching, setIsSearching] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    const [searchQuery, setSearchQuery] = useState("")
 
     const backendPort = import.meta.env.VITE_BACKEND_PORT
 
@@ -150,9 +151,20 @@ export default function SimulationConfigPage() {
         }, 300)
     }
 
+    // Filter nodes by search query
+    const filteredNodes = useMemo(() => {
+        return matchingNodes.filter(
+            (node) =>
+                node.shortnodeid?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                node.browse_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                node.node_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                node.data_type?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    }, [matchingNodes, searchQuery])
+
     // Sorting and pagination
     const sortedNodes = useMemo(() => {
-        const copy = [...matchingNodes]
+        const copy = [...filteredNodes]
         copy.sort((a, b) => {
             const valA = a[sortKey]
             const valB = b[sortKey]
@@ -166,7 +178,7 @@ export default function SimulationConfigPage() {
                 : String(valB).localeCompare(String(valA))
         })
         return copy
-    }, [matchingNodes, sortKey, sortDir])
+    }, [filteredNodes, sortKey, sortDir])
 
     const totalPages = Math.max(1, Math.ceil(sortedNodes.length / pageSize))
     const currentPage = Math.min(page, totalPages)
@@ -354,24 +366,38 @@ export default function SimulationConfigPage() {
                                 {/* Matching Nodes Table */}
                                 <Card>
                                     <CardHeader>
-                                        <div className="flex items-center justify-between gap-3">
-                                            <CardTitle>Tracked Nodes ({matchingNodes.length})</CardTitle>
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <CardTitle>Tracked Nodes ({matchingNodes.length})</CardTitle>
+                                                {matchingNodes.length > 0 && (
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <span className="text-muted-foreground">Rows per page:</span>
+                                                        <select
+                                                            value={pageSize}
+                                                            onChange={(e) => {
+                                                                setPageSize(Number(e.target.value))
+                                                                setPage(1)
+                                                            }}
+                                                            className="rounded border px-2 py-1 text-sm bg-background"
+                                                        >
+                                                            {[10, 25, 50, 100].map((size) => (
+                                                                <option key={size} value={size}>{size}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
                                             {matchingNodes.length > 0 && (
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <span className="text-muted-foreground">Rows per page:</span>
-                                                    <select
-                                                        value={pageSize}
-                                                        onChange={(e) => {
-                                                            setPageSize(Number(e.target.value))
-                                                            setPage(1)
-                                                        }}
-                                                        className="rounded border px-2 py-1 text-sm bg-background"
-                                                    >
-                                                        {[10, 25, 50, 100].map((size) => (
-                                                            <option key={size} value={size}>{size}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Search by node ID, browse name, short ID, or data type..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => {
+                                                        setSearchQuery(e.target.value)
+                                                        setPage(1)
+                                                    }}
+                                                    className="w-full"
+                                                />
                                             )}
                                         </div>
                                     </CardHeader>
