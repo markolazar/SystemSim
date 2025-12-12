@@ -104,13 +104,13 @@ async def list_runs():
 
 
 @router.get("/runs/{run_id}/samples")
-async def get_run_samples_api(
-    run_id: str, node_ids: str | None = None, limit: int = 5000
-):
-    """Fetch samples for a simulation run. node_ids is a comma-separated list."""
+async def get_run_samples_api(run_id: str, node_ids: str | None = None, limit: int = 0):
+    """Fetch samples for a simulation run. node_ids is a comma-separated list. limit=0 means no limit."""
     try:
         ids_list = [nid for nid in node_ids.split(",") if nid] if node_ids else None
-        samples = await get_run_samples(run_id, ids_list, limit)
+        # If no limit specified, use a very high value to get all data
+        effective_limit = limit if limit > 0 else 1000000
+        samples = await get_run_samples(run_id, ids_list, effective_limit)
         return {"success": True, "samples": samples, "count": len(samples)}
     except Exception as e:
         return {"success": False, "message": f"Failed to load samples: {str(e)}"}

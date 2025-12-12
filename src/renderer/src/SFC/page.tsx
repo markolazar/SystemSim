@@ -73,14 +73,6 @@ const nodeTypesConfig = [
     shape: 'circle'
   },
   {
-    type: 'comment',
-    label: 'Comment',
-    color: '#f97316',
-    bgColor: '#ffedd5',
-    description: 'Add a comment note (aesthetic only)',
-    shape: 'rectangle'
-  },
-  {
     type: 'end',
     label: 'End',
     color: '#ef4444',
@@ -420,61 +412,6 @@ const WaitNode = ({ data, selected }: any) => {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
-const CommentNode = ({ data, selected }: any) => {
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const event = new CustomEvent('openCommentModal', { detail: { nodeId: data.nodeId } })
-    window.dispatchEvent(event)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const commentConfig = (data as any).commentConfig || {}
-  const commentText = commentConfig.commentText || 'Add comment...'
-
-  return (
-    <div
-      style={{
-        padding: '12px 14px',
-        border: `2px dashed ${data.color}`,
-        backgroundColor: data.bgColor,
-        minWidth: '140px',
-        maxWidth: '280px',
-        minHeight: '60px',
-        textAlign: 'left',
-        fontWeight: 500,
-        fontSize: 12,
-        color: '#1f2937',
-        boxShadow: selected
-          ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 4px 8px rgba(0, 0, 0, 0.1)'
-          : '0 2px 4px rgba(0, 0, 0, 0.05)',
-        borderRadius: 8,
-        cursor: 'pointer',
-        wordBreak: 'break-word',
-        whiteSpace: 'pre-wrap',
-        transition: 'all 0.2s ease',
-        fontStyle: 'italic',
-        lineHeight: 1.4
-      }}
-      onDoubleClick={handleDoubleClick}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ background: data.color, width: 14, height: 14 }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ background: data.color, width: 14, height: 14 }}
-      />
-      {commentText}
-    </div>
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 const EndNode = ({ data, selected }: any) => (
   <div
     style={{
@@ -510,7 +447,6 @@ const customNodeTypes = {
   condition: ConditionNode,
   setvalue: SetValueNode,
   wait: WaitNode,
-  comment: CommentNode,
   end: EndNode
 }
 
@@ -802,12 +738,6 @@ function SFCEditor() {
   const [waitForm, setWaitForm] = useState({
     nodeName: '',
     waitTime: ''
-  })
-
-  // Section modal state
-  const [showCommentModal, setShowCommentModal] = useState(false)
-  const [commentForm, setCommentForm] = useState({
-    commentText: ''
   })
 
   const onNodesChange = useCallback(
@@ -1162,37 +1092,6 @@ function SFCEditor() {
     handleWaitModalClose()
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleCommentModalClose = () => {
-    setShowCommentModal(false)
-    setSelectedNodeId(null)
-    setCommentForm({
-      commentText: ''
-    })
-  }
-
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleCommentSubmit = () => {
-    if (selectedNodeId) {
-      // Update the node data with the form values
-      setNodes((nds) =>
-        nds.map((node) => {
-          if (node.id === selectedNodeId) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                commentConfig: { ...commentForm }
-              }
-            }
-          }
-          return node
-        })
-      )
-    }
-    handleCommentModalClose()
-  }
-
   // Auto-layout using Dagre
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleAutoLayout = () => {
@@ -1365,33 +1264,6 @@ function SFCEditor() {
 
     window.addEventListener('openWaitModal', handleOpenWaitModal)
     return () => window.removeEventListener('openWaitModal', handleOpenWaitModal)
-  }, [nodes])
-
-  // Handle Comment modal open event
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-    const handleOpenCommentModal = (event: Event) => {
-      const customEvent = event as CustomEvent
-      const nodeId = customEvent.detail.nodeId
-      setSelectedNodeId(nodeId)
-
-      // Load existing values from the node if they exist
-      const node = nodes.find((n) => n.id === nodeId)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (node?.data && (node.data as any).commentConfig) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setCommentForm((node.data as any).commentConfig)
-      } else {
-        setCommentForm({
-          commentText: ''
-        })
-      }
-
-      setShowCommentModal(true)
-    }
-
-    window.addEventListener('openCommentModal', handleOpenCommentModal)
-    return () => window.removeEventListener('openCommentModal', handleOpenCommentModal)
   }, [nodes])
 
   // Broadcast running state to sidebar for disabling navigation
@@ -1715,9 +1587,8 @@ function SFCEditor() {
             </button>
 
             <div
-              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${
-                nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-36 overflow-y-auto'
-              }`}
+              className={`border-l border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-950 transition-all duration-300 ${nodeTypesPanelCollapsed ? 'w-8 overflow-hidden' : 'w-36 overflow-y-auto'
+                }`}
             >
               {!nodeTypesPanelCollapsed && (
                 <div className="p-2">
@@ -1945,35 +1816,6 @@ function SFCEditor() {
               Cancel
             </Button>
             <Button onClick={handleWaitSubmit}>Save Configuration</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      {/* Comment Modal */}
-      <Dialog open={showCommentModal} onOpenChange={setShowCommentModal}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Add Comment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="commentText">Comment Text</Label>
-              <textarea
-                id="commentText"
-                placeholder="Type your comment here..."
-                value={commentForm.commentText}
-                onChange={(e) => setCommentForm({ ...commentForm, commentText: e.target.value })}
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-950 text-gray-900 dark:text-white min-h-[100px] resize-none"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                This comment is purely aesthetic and will not affect SFC execution.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCommentModalClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleCommentSubmit}>Save Comment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

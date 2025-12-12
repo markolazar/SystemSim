@@ -48,7 +48,7 @@ export default function SimulationReportsPage() {
     const [runs, setRuns] = useState<SimulationRun[]>([])
     const [runsLoading, setRunsLoading] = useState(true)
     const [selectedRun, setSelectedRun] = useState<string | null>(null)
-    const [limit, setLimit] = useState(2000)
+    const [limit, setLimit] = useState(10000)  // Increased default limit
     const [samples, setSamples] = useState<SampleRow[]>([])
     const [samplesLoading, setSamplesLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -90,7 +90,9 @@ export default function SimulationReportsPage() {
             setSamplesLoading(true)
             setError(null)
             try {
-                const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}/samples?limit=${limit}`)
+                // Only add limit query param if user set a specific limit
+                const limitParam = limit ? `&limit=${limit}` : ""
+                const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}/samples?limit=${limit}${limitParam}`)
                 const data = await res.json()
                 if (data.success) {
                     setSamples(data.samples)
