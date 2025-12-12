@@ -894,7 +894,7 @@ async def list_simulation_runs():
 
 
 async def get_run_samples(
-    run_id: str, node_ids: list[str] | None = None, limit: int = 5000
+    run_id: str, node_ids: list[str] | None = None, limit: int = 1000000
 ):
     """Fetch samples for a run, optionally filtered by node_ids."""
     db_path = get_db_path()

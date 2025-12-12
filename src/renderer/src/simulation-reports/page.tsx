@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
@@ -16,6 +16,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical } from "lucide-react"
+import { downsampleLTTB, calculateOptimalThreshold } from "@/lib/downsampling"
 
 interface SimulationRun {
     id: string
@@ -48,7 +49,6 @@ export default function SimulationReportsPage() {
     const [runs, setRuns] = useState<SimulationRun[]>([])
     const [runsLoading, setRunsLoading] = useState(true)
     const [selectedRun, setSelectedRun] = useState<string | null>(null)
-    const [limit, setLimit] = useState(10000)  // Increased default limit
     const [samples, setSamples] = useState<SampleRow[]>([])
     const [samplesLoading, setSamplesLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -90,9 +90,8 @@ export default function SimulationReportsPage() {
             setSamplesLoading(true)
             setError(null)
             try {
-                // Only add limit query param if user set a specific limit
-                const limitParam = limit ? `&limit=${limit}` : ""
-                const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}/samples?limit=${limit}${limitParam}`)
+                // Fetch all samples - downsampling handles performance
+                const res = await fetch(`http://localhost:${backendPort}/simulation/runs/${selectedRun}/samples`)
                 const data = await res.json()
                 if (data.success) {
                     setSamples(data.samples)
@@ -108,7 +107,7 @@ export default function SimulationReportsPage() {
             }
         }
         loadSamples()
-    }, [backendPort, selectedRun, limit])
+    }, [backendPort, selectedRun])
 
     const nodeSeries = useMemo(() => {
         const map = new Map<string, SeriesPoint[]>()
@@ -162,12 +161,26 @@ export default function SimulationReportsPage() {
 
     const ChartCard = ({ nodeId, shortNodeId, data, color, xDomain }: { nodeId: string; shortNodeId: string | null; data: SeriesPoint[]; color: string; xDomain?: [number, number] }) => {
         const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: nodeId })
+        const cardContentRef = useRef<HTMLDivElement>(null)
+        const [containerWidth, setContainerWidth] = useState(0)
+
+        useEffect(() => {
+            if (cardContentRef.current) {
+                setContainerWidth(cardContentRef.current.clientWidth)
+            }
+        }, [])
+
         const style = {
             transform: CSS.Transform.toString(transform),
             transition,
             opacity: isDragging ? 0.5 : 1,
         }
         const displayTitle = shortNodeId || nodeId
+
+        // Apply downsampling to reduce points for rendering
+        const threshold = calculateOptimalThreshold(containerWidth || 800)
+        const downsampledData = useMemo(() => downsampleLTTB(data, threshold), [data, threshold])
+
         return (
             <Card ref={setNodeRef} style={style} className="w-full">
                 <CardHeader className="flex flex-row items-center justify-between px-4 py-2">
@@ -176,9 +189,9 @@ export default function SimulationReportsPage() {
                         <GripVertical className="h-5 w-5 text-muted-foreground" />
                     </div>
                 </CardHeader>
-                <CardContent className="h-80">
+                <CardContent className="h-80" ref={cardContentRef}>
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data} margin={{ top: 0, right: 10, left: 0, bottom: 0 }} syncId="simReports" syncMethod="value">
+                        <LineChart data={downsampledData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }} syncId="simReports" syncMethod="value">
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis
                                 type="number"
@@ -276,17 +289,6 @@ export default function SimulationReportsPage() {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-muted-foreground">Limit</span>
-                                    <Input
-                                        type="number"
-                                        className="w-24 h-9"
-                                        value={limit}
-                                        onChange={(e) => setLimit(Math.max(100, Number(e.target.value) || 100))}
-                                        min={100}
-                                        step={100}
-                                    />
-                                </div>
                                 <Button variant="outline" onClick={() => selectedRun && setSelectedRun(selectedRun)} disabled={samplesLoading}>
                                     Refresh
                                 </Button>
