@@ -1621,6 +1621,23 @@ function SFCEditor() {
                 setEdgeContextMenu(null)
               }}
             >
+              <style>{`
+                .dark .react-flow__controls {
+                  background: rgba(31, 41, 55, 0.9) !important;
+                  border-color: rgb(55, 65, 81) !important;
+                }
+                .dark .react-flow__controls button {
+                  background: transparent !important;
+                  border-color: rgb(55, 65, 81) !important;
+                  color: rgb(209, 213, 219) !important;
+                }
+                .dark .react-flow__controls button:hover {
+                  background: rgba(55, 65, 81, 0.5) !important;
+                }
+                .dark .react-flow__controls button path {
+                  fill: rgb(209, 213, 219) !important;
+                }
+              `}</style>
               <ReactFlow
                 nodes={nodesWithStatus}
                 edges={edgesWithStatus}
@@ -1654,11 +1671,8 @@ function SFCEditor() {
                   zoomable
                   pannable
                   position="bottom-right"
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    border: '1px solid #e5e7eb'
-                  }}
-                  className="dark:bg-gray-800/90 dark:border-gray-700"
+                  className="!bg-white/90 dark:!bg-gray-800/90 !border !border-gray-200 dark:!border-gray-700 !rounded-lg"
+                  maskColor="rgba(0, 0, 0, 0.1)"
                 />
                 <Panel
                   position="top-left"
