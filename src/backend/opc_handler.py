@@ -224,6 +224,7 @@ def discover_nodes_recursive(
 
     return nodes
 
+
 def list_child_nodes(url: str, prefix: str):
     """List immediate children of the given prefix node."""
     client = None
@@ -314,6 +315,7 @@ def connect_to_opc_server(url: str, prefix: str):
                 print("Disconnected from OPC UA server")
             except Exception as disconnect_error:
                 print(f"Error disconnecting: {disconnect_error}")
+
 
 def discover_nodes(url: str, prefix: str, selected_nodes: list[str] | None = None):
     """
