@@ -1,13 +1,14 @@
 import aiosqlite
 import os
 from pathlib import Path
+from utils import get_base_path
 
 
 def get_db_path():
     """Get the path to the database file"""
-    # Store database in the backend directory
-    backend_dir = Path(__file__).parent
-    db_path = backend_dir / "systemsim.db"
+    # Store database in the assets directory
+    base_path = get_base_path()
+    db_path = os.path.join(base_path, "assets", "systemsim.db")
     return str(db_path)
 
 

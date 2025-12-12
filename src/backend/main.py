@@ -7,22 +7,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- Project-specific imports ---
+from utils import get_base_path
 from database import init_database, migrate_database
 from sfc_manager import SFCExecutionManager
 from sfc_routes import setup_sfc_routes
 from sfc_config_routes import router as sfc_config_router
 from opc_routes import router as opc_router
 from simulation_routes import router as simulation_router
-
-
-def get_base_path():
-    """Get the base path for the application"""
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.join(
-            sys._MEIPASS, ".."
-        )  # pyright: ignore[reportAttributeAccessIssue]
-    else:
-        return os.path.abspath(os.path.dirname(__file__))
 
 
 def load_environment():
