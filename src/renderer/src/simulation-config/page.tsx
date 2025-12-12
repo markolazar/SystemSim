@@ -14,9 +14,11 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
     Table,
     TableBody,
@@ -46,6 +48,7 @@ export default function SimulationConfigPage() {
     const [sortKey, setSortKey] = useState<"shortnodeid" | "browse_name" | "node_id" | "data_type">("shortnodeid")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
     const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
+    const [isSearching, setIsSearching] = useState(false)
 
     const backendPort = import.meta.env.VITE_BACKEND_PORT
 
@@ -111,30 +114,37 @@ export default function SimulationConfigPage() {
     }, [allNodes, backendPort])
 
     const handleSearch = () => {
+        setIsSearching(true)
         setRegexError(null)
 
-        if (!regexPattern.trim()) {
-            setMatchingNodes([])
-            setSelectedNodes(new Set())
-            return
-        }
+        // Simulate minimal delay for feedback
+        setTimeout(() => {
+            if (!regexPattern.trim()) {
+                setMatchingNodes([])
+                setSelectedNodes(new Set())
+                setIsSearching(false)
+                return
+            }
 
-        try {
-            const regex = new RegExp(regexPattern, "i") // Case-insensitive
-            const matching = allNodes.filter(node => {
-                // Match against shortnodeid if available, otherwise node_id
-                const searchText = node.shortnodeid || node.node_id || ""
-                return regex.test(searchText)
-            })
-            setMatchingNodes(matching)
-            // Auto-select all matching nodes
-            setSelectedNodes(new Set(matching.map(n => n.id)))
-            setPage(1) // Reset to first page
-        } catch (error) {
-            setRegexError(`Invalid regex: ${error instanceof Error ? error.message : "Unknown error"}`)
-            setMatchingNodes([])
-            setSelectedNodes(new Set())
-        }
+            try {
+                const regex = new RegExp(regexPattern, "i") // Case-insensitive
+                const matching = allNodes.filter(node => {
+                    // Match against shortnodeid if available, otherwise node_id
+                    const searchText = node.shortnodeid || node.node_id || ""
+                    return regex.test(searchText)
+                })
+                setMatchingNodes(matching)
+                // Auto-select all matching nodes
+                setSelectedNodes(new Set(matching.map(n => n.id)))
+                setPage(1) // Reset to first page
+            } catch (error) {
+                setRegexError(`Invalid regex: ${error instanceof Error ? error.message : "Unknown error"}`)
+                setMatchingNodes([])
+                setSelectedNodes(new Set())
+            } finally {
+                setIsSearching(false)
+            }
+        }, 300)
     }
 
     // Sorting and pagination
@@ -209,8 +219,42 @@ export default function SimulationConfigPage() {
             <SidebarInset>
                 {/* Toast Notification */}
                 {toast && (
-                    <div className={`fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg text-white z-50 ${toast.type === "success" ? "bg-green-600" : "bg-red-600"}`}>
-                        {toast.message}
+                    <div className="fixed top-4 right-4 z-50 w-96 animate-in slide-in-from-top-5">
+                        <Alert variant={toast.type === "success" ? "success" : "destructive"}>
+                            {toast.type === "success" ? (
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={2}
+                                    stroke="currentColor"
+                                    className="h-4 w-4"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                            ) : (
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={2}
+                                    stroke="currentColor"
+                                    className="h-4 w-4"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 9v3.75m-9.303 3.376c.866 1.5 2.926 2.871 5.303 2.871s4.437-1.372 5.303-2.871M9 19.5a9 9 0 1118 0 9 9 0 01-18 0z"
+                                    />
+                                </svg>
+                            )}
+                            <AlertTitle>{toast.type === "success" ? "✓ Saved" : "✗ Error"}</AlertTitle>
+                            <AlertDescription>{toast.message}</AlertDescription>
+                        </Alert>
                     </div>
                 )}
 
@@ -234,10 +278,10 @@ export default function SimulationConfigPage() {
                 </header>
 
                 <main className="flex-1 overflow-auto">
-                    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                    <div className="p-4 md:p-8">
                         <div className="mb-8">
-                            <h1 className="text-2xl md:text-3xl font-bold mb-2">Simulation Configuration</h1>
-                            <p className="text-sm md:text-base text-muted-foreground">Select OPC nodes to track during simulation execution</p>
+                            <h1 className="text-lg md:text-xl font-bold mb-2">⚙️ Simulation Configuration</h1>
+                            <p className="text-xs md:text-sm text-muted-foreground">Select OPC nodes to track during simulation execution</p>
                         </div>
 
                         <div className="grid gap-6">
@@ -265,8 +309,9 @@ export default function SimulationConfigPage() {
                                                 onClick={handleSearch}
                                                 size="sm"
                                                 className="w-full sm:w-auto"
+                                                disabled={isSearching}
                                             >
-                                                🔍 Search
+                                                {isSearching ? "🔄 Searching..." : "🔍 Search"}
                                             </Button>
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">
@@ -304,7 +349,13 @@ export default function SimulationConfigPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {matchingNodes.length === 0 ? (
+                                    {isSearching ? (
+                                        <div className="space-y-2">
+                                            {Array.from({ length: 5 }).map((_, idx) => (
+                                                <Skeleton key={idx} className="h-8 w-full" />
+                                            ))}
+                                        </div>
+                                    ) : matchingNodes.length === 0 ? (
                                         <div className="text-center py-8 text-muted-foreground">
                                             {regexPattern ? "No nodes match the pattern" : "Enter a regex pattern to see matching nodes"}
                                         </div>

@@ -67,6 +67,7 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                                                 className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 disabled={isRunning}
                                             >
+                                                <span className="mr-2">🖥️</span>
                                                 OPC Server
                                             </button>
                                         </SidebarMenuSubButton>
@@ -78,6 +79,7 @@ export function AppSidebar({ isRunning = false, ...props }: React.ComponentProps
                                                 className={`w-full text-left ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 disabled={isRunning}
                                             >
+                                                <span className="mr-2">🔍</span>
                                                 OPC Nodes
                                             </button>
                                         </SidebarMenuSubButton>

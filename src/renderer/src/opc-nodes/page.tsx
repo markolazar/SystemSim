@@ -65,7 +65,7 @@ export default function OPCNodesPage() {
     const [childrenPage, setChildrenPage] = useState(1)
     const [sortKey, setSortKey] = useState<keyof OPCNode>("node_id")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
-    const [pageSize, setPageSize] = useState(25)
+    const [pageSize, setPageSize] = useState(10)
     const [page, setPage] = useState(1)
     const [childListHeight, setChildListHeight] = useState(384) // Default 384px (max-h-96)
     const [discoveryLog, setDiscoveryLog] = useState<Record<string, { last_discovered: number; duration_ms: number }>>({})
@@ -361,7 +361,7 @@ export default function OPCNodesPage() {
                     <div className="space-y-4">
                         <Card>
                             <CardHeader>
-                                <CardTitle>Node Discovery</CardTitle>
+                                <CardTitle>🔍 Node Discovery</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
@@ -602,7 +602,7 @@ export default function OPCNodesPage() {
                             <Card>
                                 <CardHeader>
                                     <div className="flex items-center justify-between gap-3">
-                                        <CardTitle>Discovered Nodes ({nodes.length})</CardTitle>
+                                        <CardTitle>📋 Discovered Nodes ({nodes.length})</CardTitle>
                                         {discoveryResult && (
                                             <div className="text-sm text-muted-foreground">
                                                 <span>Last discovery: </span>
@@ -630,71 +630,86 @@ export default function OPCNodesPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead className="border-b">
-                                                <tr>
-                                                    {([
-                                                        { key: "short_node_id", label: "Short Node ID", align: "left" },
-                                                        { key: "browse_name", label: "Browse Name", align: "left" },
-                                                        { key: "node_id", label: "Full Node ID", align: "left" },
-                                                        { key: "parent_id", label: "Parent ID", align: "left" },
-                                                        { key: "data_type", label: "Data Type", align: "left" },
-                                                        { key: "value_rank", label: "Value Rank", align: "center" },
-                                                    ] as const).map((col) => (
-                                                        <th
-                                                            key={col.key}
-                                                            className={`${col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "text-left"} px-4 py-2 font-medium cursor-pointer select-none`}
-                                                            onClick={() => toggleSort(col.key as any)}
-                                                        >
-                                                            <div className={`flex items-center gap-1 ${col.align === "center" ? "justify-center" : col.align === "right" ? "justify-end" : ""}`}>
-                                                                <span>{col.label}</span>
-                                                                {sortKey === (col.key as any) && (
-                                                                    <span className="text-xs text-muted-foreground">{sortDir === "asc" ? "▲" : "▼"}</span>
-                                                                )}
-                                                            </div>
-                                                        </th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
+                                    <div className="border rounded-lg overflow-x-auto">
+                                        <Table className="min-w-full">
+                                            <TableHeader>
+                                                <TableRow className="bg-muted">
+                                                    <TableHead
+                                                        className="cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("short_node_id")}
+                                                    >
+                                                        Short Node ID {sortKey === "short_node_id" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                    <TableHead
+                                                        className="cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("browse_name")}
+                                                    >
+                                                        Browse Name {sortKey === "browse_name" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                    <TableHead
+                                                        className="cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("node_id")}
+                                                    >
+                                                        Full Node ID {sortKey === "node_id" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                    <TableHead
+                                                        className="cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("parent_id")}
+                                                    >
+                                                        Parent ID {sortKey === "parent_id" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                    <TableHead
+                                                        className="cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("data_type")}
+                                                    >
+                                                        Data Type {sortKey === "data_type" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                    <TableHead
+                                                        className="text-center cursor-pointer hover:bg-muted/80"
+                                                        onClick={() => toggleSort("value_rank")}
+                                                    >
+                                                        Value Rank {sortKey === "value_rank" && (sortDir === "asc" ? "↑" : "↓")}
+                                                    </TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
                                                 {isNodesLoading
                                                     ? Array.from({ length: 5 }).map((_, idx) => (
-                                                        <tr key={`skeleton-${idx}`} className="border-b">
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-48" /></td>
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-40" /></td>
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-32" /></td>
-                                                            <td className="px-4 py-2"><Skeleton className="h-4 w-24" /></td>
-                                                            <td className="px-4 py-2 text-center"><Skeleton className="h-4 w-10 mx-auto" /></td>
-                                                        </tr>
+                                                        <TableRow key={`skeleton-${idx}`}>
+                                                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                            <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                                                            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                                            <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                                                            <TableCell className="text-center"><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                                                        </TableRow>
                                                     ))
                                                     : pagedNodes.map((node, idx) => (
-                                                        <tr key={`${node.node_id}-${idx}`} className="border-b hover:bg-muted/50">
-                                                            <td className="px-4 py-2 font-mono text-xs break-all">
+                                                        <TableRow key={`${node.node_id}-${idx}`} className="hover:bg-muted/50">
+                                                            <TableCell className="font-mono text-xs break-all">
                                                                 {node.short_node_id || node.node_id}
-                                                            </td>
-                                                            <td className="px-4 py-2">{node.browse_name}</td>
-                                                            <td className="px-4 py-2 font-mono text-xs break-all text-muted-foreground">
+                                                            </TableCell>
+                                                            <TableCell className="text-sm">{node.browse_name}</TableCell>
+                                                            <TableCell className="font-mono text-xs break-all text-muted-foreground">
                                                                 {node.node_id}
-                                                            </td>
-                                                            <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                                                            </TableCell>
+                                                            <TableCell className="font-mono text-xs text-muted-foreground">
                                                                 {node.parent_id || "-"}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-xs text-muted-foreground">
+                                                            </TableCell>
+                                                            <TableCell className="text-xs text-muted-foreground">
                                                                 {node.data_type || "-"}
-                                                            </td>
-                                                            <td className="px-4 py-2 text-center">
+                                                            </TableCell>
+                                                            <TableCell className="text-center text-sm">
                                                                 {node.value_rank !== null ? node.value_rank : "-"}
-                                                            </td>
-                                                        </tr>
+                                                            </TableCell>
+                                                        </TableRow>
                                                     ))}
-                                            </tbody>
-                                        </table>
+                                            </TableBody>
+                                        </Table>
                                     </div>
 
                                     {!isNodesLoading && (
-                                        <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+                                        <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
                                             <span>
                                                 Showing {(currentPage - 1) * pageSize + 1}–
                                                 {Math.min(currentPage * pageSize, sortedNodes.length)} of {sortedNodes.length}

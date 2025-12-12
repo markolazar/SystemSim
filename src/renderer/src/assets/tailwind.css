@@ -96,6 +96,45 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Custom scrollbar styles */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: hsl(var(--background));
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.5);
+        border-radius: 5px;
+        border: 2px solid hsl(var(--background));
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--muted-foreground) / 0.7);
+    }
+
+    /* Firefox scrollbar */
+    * {
+        scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--background));
+        scrollbar-width: thin;
+    }
+
+    *:hover {
+        scrollbar-color: hsl(var(--muted-foreground) / 0.7) hsl(var(--background));
+    }
+
+    .dark {
+        color-scheme: dark;
+    }
+
+    .light {
+        color-scheme: light;
+    }
+
     /* Map ReactFlow's CSS variables to the app's shadcn variables so the library
        uses the app theme for nodes, handles, edges, and labels. This is more
        robust than overriding internal class styles. */

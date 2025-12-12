@@ -161,7 +161,7 @@ export default function OPCServerPage() {
                     <div className="max-w-2xl">
                         <Card>
                             <CardHeader>
-                                <CardTitle>OPC Server Configuration</CardTitle>
+                                <CardTitle>🖥️ OPC Server Configuration</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {isConfigLoading ? (
@@ -186,7 +186,7 @@ export default function OPCServerPage() {
                                                 value={opcServerUrl}
                                                 onChange={(e) => setOpcServerUrl(e.target.value)}
                                                 placeholder="e.g., opc.tcp://localhost:4840"
-                                                className="w-full rounded border px-3 py-2 text-sm"
+                                                className="w-full rounded border px-3 py-2 text-sm bg-background text-foreground"
                                             />
                                         </div>
 
@@ -200,14 +200,11 @@ export default function OPCServerPage() {
                                                 value={opcServerPrefix}
                                                 onChange={(e) => setOpcServerPrefix(e.target.value)}
                                                 placeholder="e.g., ns=2;s=MyApp"
-                                                className="w-full rounded border px-3 py-2 text-sm"
+                                                className="w-full rounded border px-3 py-2 text-sm bg-background text-foreground"
                                             />
                                         </div>
 
                                         <div className="pt-4 flex gap-2">
-                                            <button className="rounded bg-primary px-4 py-2 text-primary-foreground text-sm font-medium hover:opacity-90">
-                                                Connect
-                                            </button>
                                             <button
                                                 onClick={handleTestConnection}
                                                 disabled={isLoading}
