@@ -69,8 +69,8 @@ src/backend/
 3. `execute_sfc()` is called to start execution
 4. SFC execution runs as async task with dependency tracking
 5. Nodes execute in order respecting graph dependencies
-6. Non-setvalue nodes (Start, End, etc.) are marked finished immediately
-7. Setvalue nodes write to OPC with proper type conversion
+6. Non-executable nodes (Start, End, Condition, etc.) are marked finished immediately
+7. SetNumber and SetBool nodes write to OPC with proper type conversion
 8. Status updates broadcast via WebSocket or REST polling
 
 ### Type-Aware OPC Writes

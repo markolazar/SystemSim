@@ -57,11 +57,19 @@ const nodeTypesConfig = [
     shape: 'diamond'
   },
   {
-    type: 'setvalue',
-    label: 'Set Value',
+    type: 'setnumber',
+    label: 'Set Number',
     color: '#8b5cf6',
     bgColor: '#ede9fe',
-    description: 'Assign or modify values',
+    description: 'Assign or modify numeric values',
+    shape: 'rectangle'
+  },
+  {
+    type: 'setbool',
+    label: 'Set Bool',
+    color: '#ec4899',
+    bgColor: '#fce7f3',
+    description: 'Set boolean values',
     shape: 'rectangle'
   },
   {
@@ -169,11 +177,11 @@ const ConditionNode = ({ data, selected }: any) => (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
-const SetValueNode = ({ data, selected }: any) => {
+const SetNumberNode = ({ data, selected }: any) => {
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    const event = new CustomEvent('openSetValueModal', { detail: { nodeId: data.nodeId } })
+    const event = new CustomEvent('openSetNumberModal', { detail: { nodeId: data.nodeId } })
     window.dispatchEvent(event)
   }
 
@@ -270,6 +278,123 @@ const SetValueNode = ({ data, selected }: any) => {
             {setValueConfig.time !== undefined && setValueConfig.time !== '' && (
               <span>
                 Time: <b>{setValueConfig.time}s</b>
+              </span>
+            )}
+          </div>
+        )}
+        {elapsedTime !== undefined && (
+          <div
+            style={{
+              fontSize: 11,
+              marginTop: 6,
+              fontWeight: 700,
+              backgroundColor: data.color,
+              color: 'white',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              display: 'inline-block'
+            }}
+          >
+            Elapsed: {elapsedTime}s
+          </div>
+        )}
+      </div>
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
+    </div>
+  )
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-function-return-type
+const SetBoolNode = ({ data, selected }: any) => {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const event = new CustomEvent('openSetBoolModal', { detail: { nodeId: data.nodeId } })
+    window.dispatchEvent(event)
+  }
+
+  // Display OPC node if configured, otherwise show default label
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setBoolConfig = (data as any).setBoolConfig || {}
+  const displayText = setBoolConfig.opcNode || data.label
+  // Replace dots with newlines for better visibility
+  const formattedDisplayText = displayText.replace(/\./g, '\n')
+
+  // Show value and time if available
+  const hasDetails = setBoolConfig.value !== undefined || setBoolConfig.time
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const elapsedTime = (data as any).elapsedTime
+
+  return (
+    <div
+      style={{
+        padding: '16px 18px',
+        border: `2px solid ${data.color}`,
+        backgroundColor: data.bgColor,
+        minWidth: '160px',
+        maxWidth: '360px',
+        minHeight: '80px',
+        textAlign: 'left',
+        fontWeight: 600,
+        fontSize: 13,
+        color: '#1f2937',
+        boxShadow: selected
+          ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 8px 16px rgba(0, 0, 0, 0.15)'
+          : '0 8px 16px rgba(0, 0, 0, 0.1)',
+        borderRadius: 12,
+        cursor: 'pointer',
+        wordBreak: 'break-all',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: 12,
+        transition: 'all 0.2s ease'
+      }}
+      onDoubleClick={handleDoubleClick}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ background: data.color, width: 16, height: 16, alignSelf: 'center' }}
+      />
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center'
+        }}
+      >
+        <div
+          style={{
+            minHeight: 24,
+            fontWeight: 700,
+            fontSize: 14,
+            color: '#1f2937',
+            wordBreak: 'break-word',
+            whiteSpace: 'pre-line'
+          }}
+          title={displayText}
+        >
+          {formattedDisplayText}
+        </div>
+        {hasDetails && (
+          <div
+            style={{ fontSize: 11, color: '#6b7280', marginTop: 6, lineHeight: 1.4, opacity: 0.85 }}
+          >
+            {setBoolConfig.value !== undefined && (
+              <span style={{ marginRight: 8 }}>
+                Value: <b>{String(setBoolConfig.value)}</b>
+              </span>
+            )}
+            {setBoolConfig.time !== undefined && setBoolConfig.time !== '' && (
+              <span>
+                Time: <b>{setBoolConfig.time}s</b>
               </span>
             )}
           </div>
@@ -445,7 +570,8 @@ const EndNode = ({ data, selected }: any) => (
 const customNodeTypes = {
   start: StartNode,
   condition: ConditionNode,
-  setvalue: SetValueNode,
+  setnumber: SetNumberNode,
+  setbool: SetBoolNode,
   wait: WaitNode,
   end: EndNode
 }
@@ -459,9 +585,9 @@ const initialNodes = [
   },
   {
     id: 'n2',
-    type: 'setvalue',
+    type: 'setnumber',
     position: { x: 250, y: 0 },
-    data: { label: 'Set Value', color: '#8b5cf6', bgColor: '#ede9fe', nodeId: 'n2' }
+    data: { label: 'Set Number', color: '#8b5cf6', bgColor: '#ede9fe', nodeId: 'n2' }
   },
   {
     id: 'n3',
@@ -723,13 +849,18 @@ function SFCEditor() {
       pollingIntervalRef.id = null
     }
   }
-  const [showSetValueModal, setShowSetValueModal] = useState(false)
+  const [showSetNumberModal, setShowSetNumberModal] = useState(false)
+  const [showSetBoolModal, setShowSetBoolModal] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [setValueForm, setSetValueForm] = useState({
-    type: 'float',
+  const [setNumberForm, setSetNumberForm] = useState({
     opcNode: '',
     startValue: '',
     endValue: '',
+    time: ''
+  })
+  const [setBoolForm, setSetBoolForm] = useState({
+    opcNode: '',
+    value: '',
     time: ''
   })
 
@@ -839,14 +970,24 @@ function SFCEditor() {
   )
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleSetValueModalClose = () => {
-    setShowSetValueModal(false)
+  const handleSetNumberModalClose = () => {
+    setShowSetNumberModal(false)
     setSelectedNodeId(null)
-    setSetValueForm({
-      type: 'float',
+    setSetNumberForm({
       opcNode: '',
       startValue: '',
       endValue: '',
+      time: ''
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleSetBoolModalClose = () => {
+    setShowSetBoolModal(false)
+    setSelectedNodeId(null)
+    setSetBoolForm({
+      opcNode: '',
+      value: '',
       time: ''
     })
   }
@@ -1039,7 +1180,7 @@ function SFCEditor() {
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-  const handleSetValueSubmit = () => {
+  const handleSetNumberSubmit = () => {
     if (selectedNodeId) {
       // Update the node data with the form values
       setNodes((nds) =>
@@ -1049,7 +1190,7 @@ function SFCEditor() {
               ...node,
               data: {
                 ...node.data,
-                setValueConfig: { ...setValueForm }
+                setValueConfig: { ...setNumberForm, type: 'float' }
               }
             }
           }
@@ -1057,7 +1198,29 @@ function SFCEditor() {
         })
       )
     }
-    handleSetValueModalClose()
+    handleSetNumberModalClose()
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const handleSetBoolSubmit = () => {
+    if (selectedNodeId) {
+      // Update the node data with the form values
+      setNodes((nds) =>
+        nds.map((node) => {
+          if (node.id === selectedNodeId) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                setBoolConfig: { ...setBoolForm }
+              }
+            }
+          }
+          return node
+        })
+      )
+    }
+    handleSetBoolModalClose()
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -1207,7 +1370,7 @@ function SFCEditor() {
     loadSFCNodes()
   }, [])
 
-  // Handle Set Value modal open event
+  // Handle Set Number modal open event
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const handleOpenModal = (event: Event) => {
@@ -1220,10 +1383,15 @@ function SFCEditor() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (node?.data && (node.data as any).setValueConfig) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSetValueForm((node.data as any).setValueConfig)
+        const config = (node.data as any).setValueConfig
+        setSetNumberForm({
+          opcNode: config.opcNode || '',
+          startValue: config.startValue || '',
+          endValue: config.endValue || '',
+          time: config.time || ''
+        })
       } else {
-        setSetValueForm({
-          type: 'float',
+        setSetNumberForm({
           opcNode: '',
           startValue: '',
           endValue: '',
@@ -1231,11 +1399,40 @@ function SFCEditor() {
         })
       }
 
-      setShowSetValueModal(true)
+      setShowSetNumberModal(true)
     }
 
-    window.addEventListener('openSetValueModal', handleOpenModal)
-    return () => window.removeEventListener('openSetValueModal', handleOpenModal)
+    window.addEventListener('openSetNumberModal', handleOpenModal)
+    return () => window.removeEventListener('openSetNumberModal', handleOpenModal)
+  }, [nodes])
+
+  // Handle Set Bool modal open event
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    const handleOpenBoolModal = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const nodeId = customEvent.detail.nodeId
+      setSelectedNodeId(nodeId)
+
+      // Load existing values from the node if they exist
+      const node = nodes.find((n) => n.id === nodeId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (node?.data && (node.data as any).setBoolConfig) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setSetBoolForm((node.data as any).setBoolConfig)
+      } else {
+        setSetBoolForm({
+          opcNode: '',
+          value: '',
+          time: ''
+        })
+      }
+
+      setShowSetBoolModal(true)
+    }
+
+    window.addEventListener('openSetBoolModal', handleOpenBoolModal)
+    return () => window.removeEventListener('openSetBoolModal', handleOpenBoolModal)
   }, [nodes])
 
   // Handle Wait modal open event
@@ -1398,7 +1595,7 @@ function SFCEditor() {
 
   // Patch node colors for execution status
   const nodesWithStatus = nodes.map((node) => {
-    if (node.type === 'setvalue' || node.type === 'wait') {
+    if (node.type === 'setnumber' || node.type === 'setbool' || node.type === 'wait') {
       return {
         ...node,
         data: {
@@ -1704,37 +1901,20 @@ function SFCEditor() {
           </button>
         </div>
       )}
-      {/* Set Value Modal */}
-      <Dialog open={showSetValueModal} onOpenChange={setShowSetValueModal}>
+      {/* Set Number Modal */}
+      <Dialog open={showSetNumberModal} onOpenChange={setShowSetNumberModal}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Configure Set Value Node</DialogTitle>
+            <DialogTitle>Configure Set Number Node</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Type Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="type">Value Type</Label>
-              <Select
-                value={setValueForm.type}
-                onValueChange={(value) => setSetValueForm({ ...setValueForm, type: value })}
-              >
-                <SelectTrigger id="type">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="float">Float</SelectItem>
-                  <SelectItem value="bool">Boolean</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* OPC Node */}
             <div className="space-y-2">
               <Label htmlFor="opcNode">OPC Node</Label>
               <OPCAutocomplete
                 id="opcNode"
-                value={setValueForm.opcNode}
-                onChange={(value) => setSetValueForm({ ...setValueForm, opcNode: value })}
+                value={setNumberForm.opcNode}
+                onChange={(value) => setSetNumberForm({ ...setNumberForm, opcNode: value })}
                 placeholder="e.g., ns=2;s=Variable1"
                 allowedNodeIds={selectedSFCNodes}
               />
@@ -1745,9 +1925,9 @@ function SFCEditor() {
               <Label htmlFor="startValue">Start Value</Label>
               <Input
                 id="startValue"
-                placeholder={setValueForm.type === 'bool' ? 'true/false' : '0.0'}
-                value={setValueForm.startValue}
-                onChange={(e) => setSetValueForm({ ...setValueForm, startValue: e.target.value })}
+                placeholder="0.0"
+                value={setNumberForm.startValue}
+                onChange={(e) => setSetNumberForm({ ...setNumberForm, startValue: e.target.value })}
               />
             </div>
 
@@ -1756,9 +1936,9 @@ function SFCEditor() {
               <Label htmlFor="endValue">End Value</Label>
               <Input
                 id="endValue"
-                placeholder={setValueForm.type === 'bool' ? 'true/false' : '100.0'}
-                value={setValueForm.endValue}
-                onChange={(e) => setSetValueForm({ ...setValueForm, endValue: e.target.value })}
+                placeholder="100.0"
+                value={setNumberForm.endValue}
+                onChange={(e) => setSetNumberForm({ ...setNumberForm, endValue: e.target.value })}
               />
             </div>
 
@@ -1769,17 +1949,74 @@ function SFCEditor() {
                 id="time"
                 type="number"
                 placeholder="e.g., 10"
-                value={setValueForm.time}
-                onChange={(e) => setSetValueForm({ ...setValueForm, time: e.target.value })}
+                value={setNumberForm.time}
+                onChange={(e) => setSetNumberForm({ ...setNumberForm, time: e.target.value })}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleSetValueModalClose}>
+            <Button variant="outline" onClick={handleSetNumberModalClose}>
               Cancel
             </Button>
-            <Button onClick={handleSetValueSubmit}>Save Configuration</Button>
+            <Button onClick={handleSetNumberSubmit}>Save Configuration</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Set Bool Modal */}
+      <Dialog open={showSetBoolModal} onOpenChange={setShowSetBoolModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Configure Set Bool Node</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* OPC Node */}
+            <div className="space-y-2">
+              <Label htmlFor="boolOpcNode">OPC Node</Label>
+              <OPCAutocomplete
+                id="boolOpcNode"
+                value={setBoolForm.opcNode}
+                onChange={(value) => setSetBoolForm({ ...setBoolForm, opcNode: value })}
+                placeholder="e.g., ns=2;s=BoolVariable"
+                allowedNodeIds={selectedSFCNodes}
+              />
+            </div>
+
+            {/* Value */}
+            <div className="space-y-2">
+              <Label htmlFor="boolValue">Value</Label>
+              <Select
+                value={setBoolForm.value}
+                onValueChange={(value) => setSetBoolForm({ ...setBoolForm, value: value })}
+              >
+                <SelectTrigger id="boolValue">
+                  <SelectValue placeholder="Select value" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">True</SelectItem>
+                  <SelectItem value="false">False</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Time */}
+            <div className="space-y-2">
+              <Label htmlFor="boolTime">Time (seconds)</Label>
+              <Input
+                id="boolTime"
+                type="number"
+                placeholder="e.g., 5"
+                value={setBoolForm.time}
+                onChange={(e) => setSetBoolForm({ ...setBoolForm, time: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleSetBoolModalClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetBoolSubmit}>Save Configuration</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

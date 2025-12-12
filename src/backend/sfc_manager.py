@@ -355,8 +355,8 @@ async def execute_sfc(
             outgoing[source].append(target)
             incoming[target].append(source)
 
-    # Execute setvalue and wait nodes
-    executable_nodes = {n["id"] for n in nodes if n["type"] in ["setvalue", "wait"]}
+    # Execute setnumber, setbool, and wait nodes
+    executable_nodes = {n["id"] for n in nodes if n["type"] in ["setnumber", "setbool", "wait"]}
 
     print(f"DEBUG: Found {len(executable_nodes)} executable nodes: {executable_nodes}")
     print(f"DEBUG: Node map keys: {list(node_map.keys())}")
@@ -365,11 +365,11 @@ async def execute_sfc(
 
     # Mark non-executable nodes as finished immediately (start, end, condition)
     # IMPORTANT: Initialize fresh for each execution to avoid state persistence
-    finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
+    finished = {n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]}
     running = set()
 
     async def execute_node(node_id):
-        """Execute a single node (setvalue or wait)"""
+        """Execute a single node (setnumber, setbool, or wait)"""
         node = node_map[node_id]
         node_start_time = time.time()
 
@@ -395,8 +395,8 @@ async def execute_sfc(
         try:
             node_type = node.get("type")
 
-            # Handle SetValue nodes
-            if node_type == "setvalue":
+            # Handle SetNumber nodes
+            if node_type == "setnumber":
                 setValueConfig = node["data"].get("setValueConfig", {})
                 opc_node = setValueConfig.get("opcNode")
                 start_value = setValueConfig.get("startValue")
@@ -412,6 +412,29 @@ async def execute_sfc(
                         start_value,
                         end_value,
                         steps,
+                        duration,
+                    )
+                else:
+                    await asyncio.sleep(duration)
+
+            # Handle SetBool nodes
+            elif node_type == "setbool":
+                setBoolConfig = node["data"].get("setBoolConfig", {})
+                opc_node = setBoolConfig.get("opcNode")
+                bool_value = setBoolConfig.get("value")
+                duration = float(setBoolConfig.get("time", 0))
+
+                if opc_node and bool_value is not None:
+                    # Convert string to boolean
+                    if isinstance(bool_value, str):
+                        bool_value = bool_value.lower() == "true"
+                    
+                    # Write boolean value to OPC
+                    await _write_bool_to_opc_node(
+                        opc_url,
+                        opc_prefix,
+                        opc_node,
+                        bool_value,
                         duration,
                     )
                 else:
@@ -476,7 +499,7 @@ async def execute_sfc(
         """Main SFC execution loop"""
         # Reinitialize state to prevent contamination from previous runs
         nonlocal finished, running
-        finished = {n["id"] for n in nodes if n["type"] not in ["setvalue", "wait"]}
+        finished = {n["id"] for n in nodes if n["type"] not in ["setnumber", "setbool", "wait"]}
         running = set()
 
         print(f"DEBUG: Starting SFC execution with {len(executable_nodes)} nodes")
@@ -568,7 +591,7 @@ async def _write_to_opc_node(
     Args:
         opc_url: OPC UA server URL
         opc_prefix: OPC UA prefix
-        opc_node: OPC node short ID
+        opc_node: OPC node short ID (supports array notation like "dbPLI.PLI_R[100]")
         start_value: Starting value
         end_value: Ending value
         steps: Number of interpolation steps
@@ -578,11 +601,23 @@ async def _write_to_opc_node(
     try:
         client.connect()
 
+        # Check for array notation like "dbPLI.PLI_R[100]"
+        array_index = None
+        base_node = opc_node
+        if '[' in opc_node and ']' in opc_node:
+            # Extract array index
+            import re
+            match = re.match(r'^(.+)\[(\d+)\]$', opc_node)
+            if match:
+                base_node = match.group(1)
+                array_index = int(match.group(2))
+                print(f"DEBUG: Detected array access - base: {base_node}, index: {array_index}")
+
         # Reconstruct full NodeId from short ID
-        if opc_prefix and not opc_node.startswith("ns="):
-            full_node_id = f"{opc_prefix}.{opc_node}"
+        if opc_prefix and not base_node.startswith("ns="):
+            full_node_id = f"{opc_prefix}.{base_node}"
         else:
-            full_node_id = opc_node
+            full_node_id = base_node
 
         print(f"DEBUG: Connecting to OPC node: {full_node_id}")
         node_obj = client.get_node(full_node_id)
@@ -590,7 +625,17 @@ async def _write_to_opc_node(
         # Get the current data type to determine variant type
         try:
             current_value = node_obj.get_value()
-            value_type = type(current_value)
+            
+            # If accessing array element, get the element type
+            if array_index is not None:
+                if isinstance(current_value, (list, tuple)):
+                    if array_index >= len(current_value):
+                        raise ValueError(f"Array index {array_index} out of bounds (length: {len(current_value)})")
+                    value_type = type(current_value[array_index])
+                else:
+                    raise TypeError(f"Node is not an array but array index was specified")
+            else:
+                value_type = type(current_value)
         except:
             value_type = float
 
@@ -607,10 +652,26 @@ async def _write_to_opc_node(
                 step_start = time.time()
 
                 v = start + (end - start) * i / (steps - 1)
-                # Convert to correct type and create DataValue with appropriate variant
+                # Convert to correct type
                 typed_value = value_type(v)
-                dv = ua.DataValue(ua.Variant(typed_value, variant_type))
-                node_obj.set_value(dv)
+                
+                # Handle array element access
+                if array_index is not None:
+                    # Read entire array, modify element, write back
+                    array_value = node_obj.get_value()
+                    if isinstance(array_value, list):
+                        array_value[array_index] = typed_value
+                    else:
+                        # Convert tuple to list, modify, keep as list
+                        array_value = list(array_value)
+                        array_value[array_index] = typed_value
+                    # Write array with proper variant type
+                    dv = ua.DataValue(ua.Variant(array_value))
+                    node_obj.set_value(dv)
+                else:
+                    # Write single value
+                    dv = ua.DataValue(ua.Variant(typed_value, variant_type))
+                    node_obj.set_value(dv)
 
                 # Calculate target time for this step and adjust sleep
                 target_elapsed = (i + 1) * (duration / steps)
@@ -621,10 +682,98 @@ async def _write_to_opc_node(
             # If conversion or write fails, try setting start value directly
             try:
                 typed_start = value_type(start_value)
-                dv = ua.DataValue(ua.Variant(typed_start, variant_type))
-                node_obj.set_value(dv)
+                if array_index is not None:
+                    array_value = node_obj.get_value()
+                    if isinstance(array_value, list):
+                        array_value[array_index] = typed_start
+                    else:
+                        array_value = list(array_value)
+                        array_value[array_index] = typed_start
+                    dv = ua.DataValue(ua.Variant(array_value))
+                    node_obj.set_value(dv)
+                else:
+                    dv = ua.DataValue(ua.Variant(typed_start, variant_type))
+                    node_obj.set_value(dv)
             except:
-                node_obj.set_value(start_value)
+                if array_index is None:
+                    node_obj.set_value(start_value)
+                else:
+                    raise
 
+    finally:
+        client.disconnect()
+
+
+async def _write_bool_to_opc_node(
+    opc_url: str,
+    opc_prefix: str,
+    opc_node: str,
+    bool_value: bool,
+    duration: float,
+):
+    """
+    Write a boolean value to an OPC node.
+
+    Args:
+        opc_url: OPC UA server URL
+        opc_prefix: OPC UA prefix
+        opc_node: OPC node short ID (supports array notation like "dbPLI.PLI_R[100]")
+        bool_value: Boolean value to write
+        duration: Time to wait after writing (in seconds)
+    """
+    client = Client(opc_url)
+    try:
+        client.connect()
+
+        # Check for array notation like "dbPLI.PLI_R[100]"
+        array_index = None
+        base_node = opc_node
+        if '[' in opc_node and ']' in opc_node:
+            # Extract array index
+            import re
+            match = re.match(r'^(.+)\[(\d+)\]$', opc_node)
+            if match:
+                base_node = match.group(1)
+                array_index = int(match.group(2))
+                print(f"DEBUG: Detected array access - base: {base_node}, index: {array_index}")
+
+        # Reconstruct full NodeId from short ID
+        if opc_prefix and not base_node.startswith("ns="):
+            full_node_id = f"{opc_prefix}.{base_node}"
+        else:
+            full_node_id = base_node
+
+        print(f"DEBUG: Writing boolean {bool_value} to OPC node: {full_node_id} (array index: {array_index})")
+        node_obj = client.get_node(full_node_id)
+
+        # Write boolean value
+        if array_index is not None:
+            # Read entire array, modify element, write back
+            array_value = node_obj.get_value()
+            if isinstance(array_value, list):
+                if array_index >= len(array_value):
+                    raise ValueError(f"Array index {array_index} out of bounds (length: {len(array_value)})")
+                array_value[array_index] = bool_value
+            else:
+                # Convert tuple to list if needed
+                array_value = list(array_value)
+                if array_index >= len(array_value):
+                    raise ValueError(f"Array index {array_index} out of bounds (length: {len(array_value)})")
+                array_value[array_index] = bool_value
+            # Write array with proper variant type
+            dv = ua.DataValue(ua.Variant(array_value))
+            node_obj.set_value(dv)
+        else:
+            # Write single boolean value
+            dv = ua.DataValue(ua.Variant(bool_value, ua.VariantType.Boolean))
+            node_obj.set_value(dv)
+
+        # Wait for the specified duration
+        if duration > 0:
+            await asyncio.sleep(duration)
+
+    except Exception as e:
+        print(f"Error writing boolean to OPC node {opc_node}: {e}")
+        raise
     finally:
         client.disconnect()
